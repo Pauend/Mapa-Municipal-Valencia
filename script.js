@@ -29,10 +29,10 @@ const tDetall = document.getElementById('t-detall');
 
 v.scrollLeft = 850;
 v.scrollTop = 950;
-
+/*
 function syncZoom() { 
     document.getElementById('election-svg').style.transform = `scale(${zoomScale})`; 
-}
+}*/
 
 const diccionariNomsGovernacions = {
     1: "Governació de l'Uixò (o de Castelló)",
