@@ -237,11 +237,6 @@ select:focus {
 .legend-dot-sel { width: 12px; height: 12px; background-color: #b91c1c; display: inline-block; margin-right: 8px; border-radius: 2px; }
 
 
-/* Paleta de Colors per a Partits Polítics / Escrutini */
-.partit-blau { fill: #3b82f6 !important; }
-.partit-roig { fill: #ef4444 !important; }
-.partit-verd { fill: #10b981 !important; }
-.partit-groc { fill: #eab308 !important; }
 
 /* Barres de progrés estadístiques per al panell dret */
 .progress-bar-bg { width: 100%; background-color: #f1f5f9; border-radius: 4px; height: 16px; overflow: hidden; margin-bottom: 8px; display: flex; }

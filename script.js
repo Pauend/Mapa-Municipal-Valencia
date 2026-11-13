@@ -177,7 +177,7 @@ const diccionariNomsSubcomarques = {
 
 const diccionariPartits = {
     'partit-blau': { nom: 'Blau', color: '#3b82f6' },
-    'partit-roig': { nom: 'Roig', color: '#ef4444' },
+    'partit-roig': { nom: 'Roig', color: '#de1a00' },
     'partit-verd': { nom: 'Verd', color: '#10b981' },
     'partit-groc': { nom: 'Groc', color: '#eab308' }
 };
@@ -631,7 +631,7 @@ function obtenirColorTextSegonsFons(hexcolor) {
  * ==========================================================================
  */
 function calcularEscrutiniGlobal() {
-    const totalMunicipis = 542;
+    const totalMunicipis = 538;
     const vilesGuanyadesPerPartit = {};
     const votsTotalsPerPartit = {}; 
     
@@ -703,17 +703,45 @@ function calcularEscrutiniGlobal() {
     if (!contenidorEscons) return;
     contenidorEscons.innerHTML = '';
 
-    if (tipusCircumscripcio === 'regne') {
-        // MODEL GENERAL DEL REGNE (Aplica el valor modificable de la primera casella)
-        Object.keys(votsTotalsPerPartit).forEach(partitId => {
-            const votsAcumulats = votsTotalsPerPartit[partitId];
-            const pctVot = votsTotalsRegne > 0 ? ((votsAcumulats / votsTotalsRegne) * 100).toFixed(1) : 0;
-            const esconsCalculats = votsTotalsRegne > 0 ? Math.round((votsAcumulats / votsTotalsRegne) * CAMBRA_REGNE_ESCONS) : 0;
+        if (tipusCircumscripcio === 'regne') {
+        // MODEL GENERAL DEL REGNE MULTI-DIVISOR SANEJAT
+        const esconsAssignatsRegne = {};
+        const llistaCocientsRegne = [];
 
-            if (esconsCalculats > 0 && diccionariPartits[partitId]) {
+        Object.keys(votsTotalsPerPartit).forEach(partitId => {
+            esconsAssignatsRegne[partitId] = 0;
+            const votsPartit = votsTotalsPerPartit[partitId];
+            
+            if (votsPartit > 0) {
+                for (let divisor = 1; divisor <= CAMBRA_REGNE_ESCONS; divisor++) {
+                    llistaCocientsRegne.push({ partit: partitId, valorCocient: votsPartit / divisor });
+                }
+            }
+        });
+
+        llistaCocientsRegne.sort((a, b) => b.valorCocient - a.valorCocient);
+        const límitRegne = Math.min(CAMBRA_REGNE_ESCONS, llistaCocientsRegne.length);
+        for (let i = 0; i < límitRegne; i++) {
+            esconsAssignatsRegne[llistaCocientsRegne[i].partit]++;
+        }
+
+        // Dibuixat de la targeta del Regne AMB EL NOMBRE DE VOTS INJECTAT
+        Object.keys(votsTotalsPerPartit).forEach(partitId => {
+            const escons = esconsAssignatsRegne[partitId] || 0;
+            const votsAcumulatsPartit = votsTotalsPerPartit[partitId];
+            const pctVotProporcional = votsTotalsRegne > 0 ? ((votsAcumulatsPartit / votsTotalsRegne) * 100).toFixed(1) : 0;
+
+            if (escons > 0 && diccionariPartits[partitId]) {
                 const partitInfo = diccionariPartits[partitId];
                 const fila = document.createElement('div');
-                fila.innerHTML = `<div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:2px; color:#334155;"><span>Partit ${partitInfo.nom}</span><strong>${esconsCalculats} Escons (${pctVot}%)</strong></div><div class="progress-bar-bg"><div class="progress-fill" style="width: ${pctVot}%; background-color: ${partitInfo.color};"></div></div>`;
+                fila.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:2px; color:#334155;">
+                        <span>Partit ${partitInfo.nom}</span>
+                        <strong>${escons} Escons (${pctVotProporcional}%)</strong>
+                    </div>
+                    <div style="font-size:10px; color:#64748b; margin-bottom:2px;">Vots totals acumulats: ${votsAcumulatsPartit.toLocaleString()} paperetes</div>
+                    <div class="progress-bar-bg"><div class="progress-fill" style="width: ${pctVotProporcional}%; background-color: ${partitInfo.color};"></div></div>
+                `;
                 contenidorEscons.appendChild(fila);
             }
         });
@@ -740,56 +768,54 @@ function calcularEscrutiniGlobal() {
             }
         });
 
-                // Triem quin valor de mini-parlament s'ha d'aplicar de manera fixa a cada casella local
+        // Triem quin valor de mini-parlament s'ha d'aplicar de manera fixa a cada casella local
         const esconsFixesPerCambraLocal = tipusCircumscripcio === 'g' ? CAMBRA_GOV_ESCONS : CAMBRA_COM_ESCONS;
 
         Object.keys(votsPerBlocGeografic).forEach(idBloc => {
             const dadesBloc = votsPerBlocGeografic[idBloc];
             if (dadesBloc.total === 0) return;
 
-			const etiquetaTitol = tipusCircumscripcio === 'g' ? (diccionariNomsGovernacions[idBloc] || `Corts de la Governació № ${idBloc}`) : (diccionariNomsComarques[idBloc] || `Consell de la Comarca № ${idBloc}`);            
+            const etiquetaTitol = tipusCircumscripcio === 'g' ? (diccionariNomsGovernacions[idBloc] || `Corts de la Governació № ${idBloc}`) : (diccionariNomsComarques[idBloc] || `Consell de la Comarca № ${idBloc}`);
+            
             const subTargetaBloc = document.createElement('div');
             subTargetaBloc.style.cssText = "background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin-bottom: 8px;";
             subTargetaBloc.innerHTML = `<div style="font-size:12px; font-weight:700; color:#4338ca; margin-bottom:6px; border-bottom:1px solid #cbd5e1; padding-bottom:2px;">🏛️ ${etiquetaTitol} (${esconsFixesPerCambraLocal} Diputats propis)</div>`;
 
-            // 🚀 MÈTODE DE RESTES MAJORS: Calculem la quota i les restes exactes per partit
-            const esconsAssignatsBloc = {};
-            const restesPartits = [];
-            let esconsRepartitsJa = 0;
+            // 🚀 APLICACIÓ DE LA LLEI D'HONDT REAL: Creem la llista de cocients
+            const esconsAssignatsHondt = {};
+            const llistaCocients = [];
 
+            // Inicialitzem els escons de cada partit a zero
             Object.keys(dadesBloc.partits).forEach(idPartit => {
+                esconsAssignatsHondt[idPartit] = 0;
                 const votsPartit = dadesBloc.partits[idPartit];
-                if (votsPartit === 0) {
-                    esconsAssignatsBloc[idPartit] = 0;
-                    return;
+                
+                // Generem els cocients dividint els vots consecutivament per 1, 2, 3, 4...
+                if (votsPartit > 0) {
+                    for (let divisor = 1; divisor <= esconsFixesPerCambraLocal; divisor++) {
+                        llistaCocients.push({
+                            partit: idPartit,
+                            valorCocient: votsPartit / divisor
+                        });
+                    }
                 }
-                const esconsExactes = (votsPartit / dadesBloc.total) * esconsFixesPerCambraLocal;
-                const esconsEnters = Math.floor(esconsExactes); // Ens quedem només la part entera d'entrada
-                const restaDecimals = esconsExactes - esconsEnters; // Guardem els decimals sobrants
-
-                esconsAssignatsBloc[idPartit] = esconsEnters;
-                esconsRepartitsJa += esconsEnters;
-
-                restesPartits.push({ id: idPartit, resta: restaDecimals });
             });
 
-            // Ordenem els partits de major a menor decimal sobrant
-            restesPartits.sort((a, b) => b.resta - a.resta);
+            // Ordenem tots els cocients de tot el districte de major a menor valor
+            llistaCocients.sort((a, b) => b.valorCocient - a.valorCocient);
 
-            // 🔄 L'AJUST PERFECTE: Repartim els escons que falten un a un cap a les restes més grans
-            while (esconsRepartitsJa < esconsFixesPerCambraLocal && restesPartits.length > 0) {
-                for (let i = 0; i < restesPartits.length; i++) {
-                    if (esconsRepartitsJa >= esconsFixesPerCambraLocal) break;
-                    esconsAssignatsBloc[restesPartits[i].id]++;
-                    esconsRepartitsJa++;
-                }
+            // Repartim els escons un a un de manera estricta als cocients més alts
+            const límitEsconsARepartir = Math.min(esconsFixesPerCambraLocal, llistaCocients.length);
+            for (let i = 0; i < límitEsconsARepartir; i++) {
+                const cocientGuanyador = llistaCocients[i];
+                esconsAssignatsHondt[cocientGuanyador.partit]++;
             }
 
-            // Dibuixem la llista utilitzant els nous escons de precisió total
+            // Dibuixem la llista utilitzant els nous escons calculats per la Llei d'Hondt
             Object.keys(dadesBloc.partits).forEach(idPartit => {
                 const votsPartitAlBloc = dadesBloc.partits[idPartit];
                 const pctIntern = dadesBloc.total > 0 ? ((votsPartitAlBloc / dadesBloc.total) * 100).toFixed(1) : 0;
-                const esconsCalculatsAlBloc = esconsAssignatsBloc[idPartit] || 0;
+                const esconsCalculatsAlBloc = esconsAssignatsHondt[idPartit] || 0;
 
                 if (votsPartitAlBloc > 0 && diccionariPartits[idPartit]) {
                     const partitInfo = diccionariPartits[idPartit];

@@ -2,21 +2,21 @@
 <html lang="ca">
 <head>
     <meta charset="UTF-8">
-    <title>Mapa Municipal del Regne de València (SVG Nativa)</title>
+    <title>Mapa Municipal del Regne de València (1238-1707 1872-1875)</title>
 	<link rel="stylesheet" href="style.css" />
 
 </head>
 <body>
 <div class="hdr">
-    <h2>Explorador Territorial del Regne de València (Malla Històrica Real SVG)</h2>
+    <h2>Explorador Territorial del Regne de València (1238-1707 1872-1875)</h2>
     <div>
         <label style="font-weight:bold; font-size:14px; margin-right:5px;">Nivell Cartogràfic:</label>
         <select id="sel" onchange="chg(this.value)">
-            <option value="0">Tier 0: Tot el Regne (1 Unitat Foral Global)</option>
-            <option value="1">Tier 1: Governacions Generals (5 Grans Àrees)</option>
-            <option value="2">Tier 2: Comarques (42 Demarcacions)</option>
-            <option value="3">Tier 3: Subcomarques (86 Subdivisions)</option>
-            <option value="4">Tier 4: Municipis i Universitats Reials (542 Pobles)</option>
+            <option value="0">Tier 0: País Valencià</option>
+            <option value="1">Tier 1: Governacions Generals (5)</option>
+            <option value="2">Tier 2: Comarques (44)</option>
+            <option value="3">Tier 3: Sotscomarques (86)</option>
+            <option value="4">Tier 4: Municipis (537-538)</option>
         </select>
     </div>
 </div>
@@ -1016,7 +1016,7 @@
 		
 		        <!-- 🚀 INTERRUPTOR DEL MODE EXPLORACIÓ -->
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #cbd5e1; padding-top: 8px; margin-top: 4px;">
-            <span style="font-size: 13px; color: #475569; font-weight: 500;">Mode Navegació Territorial Pure:</span>
+            <span style="font-size: 13px; color: #475569; font-weight: 500;">Navegar Lliurement:</span>
             <button id="btn-toggle-exploracio" style="padding: 6px 14px; background-color: #475569; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; transition: all 0.2s ease;">
                  OFF (Mode Edició)
             </button>
@@ -1028,13 +1028,13 @@
             <div class="row"><span>Nivell actiu:</span><strong id="t-id">Tier 0</strong></div>
         </div>
         <div class="card">
-            <h3>Informació Territorial Detallada</h3>
-            <div class="detall-box" id="t-detall">Fes clic sobre qualsevol municipi o path del mapa per veure el bloc de reacció regional dret ací.</div>
+            <h3>Informació del Municipi</h3>
+            <div class="detall-box" id="t-detall">Fes clic sobre qualsevol municipi o path del mapa per veure més dades.</div>
         </div>
 		
 		<!-- 📝 FITXA D'EDITOR DE DADES I VOTS PER MUNICIPI -->
 		<div class="card" id="targeta-editor-municipi" style="display: none; border-color: #3b82f6;">
-			<h3 style="color: #3b82f6;">Escrutini Local i Dades Forals</h3>
+			<h3 style="color: #3b82f6;">Dades editables </h3>
 			<div style="font-size: 13px; color: #1e3a8a; font-weight: bold; margin-bottom: 12px;" id="editor-nom-títol">Selecciona una vila...</div>
     
 			<!-- 🚀 RETORNAT: Nombre de Població com a Referència fixa -->
@@ -1058,7 +1058,7 @@
 			</div>
     
 			<button id="btn-desar-municipi" style="width: 100%; padding: 8px; background-color: #3b82f6; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px;">
-				💾 Desar Escrutini Municipal
+				 Desar Dades Municipal
 			</button>
 		</div>
 
@@ -1072,7 +1072,7 @@
 			
 			<div style="margin-bottom: 12px;">
 				<button onclick="canviarPartitActiu('neutre')" style="width: 100%; padding: 8px; background-color: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px;">
-            🔍 Mode Consulta (No pintar, només seleccionar)
+             Mode Consulta
 				</button>
 			</div>
 			<!-- Formulari per a afegir partits nous -->
@@ -1089,15 +1089,15 @@
 
 			<!-- Botó de Reiniciar tot l'escrutini -->
 			<button id="btn-reiniciar-escrutini" style="width: 100%; padding: 8px; background-color: #ef4444; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; gap: 8px;">
-				Reiniciar Escrutini
+				Reiniciar
 			</button>
 		</div>
 
 		<div class="card">
-			<h3>Escrutini General del Regne</h3>
+			<h3>Escrutini General del Regne (No proporcional, com Regne Unit FPTP)</h3>
 			<div class="row">
 				<span>Municipis Escrutats:</span>
-				<strong id="vots-escrutats">0 / 542</strong>
+				<strong id="vots-escrutats">0 / 537</strong>
 			</div>
 			<div class="row">
 				<span>Líder Territorial:</span>
@@ -1110,7 +1110,7 @@
 		
 		<!-- 📊 TARGETA D'ESCONS ACTUALITZADA AMB SELECTOR DE CIRCUMSCRIPCIÓ -->
 		<div class="card">
-			<h3>Repartiment Proporcional d'Escons (Població)</h3>
+			<h3>Repartiment d'Escons (Llei d'Hont)</h3>
     
 			<!-- 🚀 NOU SELECTOR: Tria el nivell territorial on es reparteixen els diputats -->
 			<div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #f8fafc; padding: 6px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
@@ -1118,7 +1118,7 @@
 				<select id="selector-circumscripcio-electoral" style="font-size: 12px; padding: 4px 8px;">
 					<option value="regne" selected>Regne Unitari (Circumscripció Única)</option>
 					<option value="g">Per Governacions Generals</option>
-					<option value="c">Per Demarcacions Comarcal</option>
+					<option value="c">Per Demarcacions Comarcals</option>
 				</select>
 			</div>
 
@@ -1132,19 +1132,7 @@
 		</div>
 
 		
-		<!-- 📊 NOU: PANNELL D'ESCRUTINI PROPORCIONAL PER ESCONS DE POBLACIÓ -->
-		<div class="card">
-			<h3>Repartiment Proporcional d'Escons (Població)</h3>
-			<div class="row">
-				<span>Població Total Escrutada:</span>
-				<strong id="poblacio-escrutada">0 hab.</strong>
-			</div>
-			<div style="margin-top: 12px; display: flex; flex-direction: column; gap: 10px;" id="barra-escons-contenidor">
-				<!-- Les barres de percentatge de població i escons es dibuixen dinàmicament aquí -->
-			</div>
-			
 		
-		</div>
 		
 		<!-- 🗳️ CONFIGURACIÓ DE REGLES ELECTORALS AMB PARLAMENTS HISTÒRICS PROPRIS -->
 		<div class="card" style="border-color: #6366f1; background-color: #f8fafc;">
@@ -1155,8 +1143,8 @@
 					<span style="font-size: 13px; color: #475569;">Àmbit de la Representació:</span>
 					<select id="selector-circumscripcio-electoral" style="font-size: 13px; padding: 6px 12px; border-radius: 6px; border: 1px solid #6366f1; font-weight: 600; background-color: white; cursor: pointer; min-width: 240px;">
 						<option value="regne" selected>Corts Unitàries del Regne</option>
-						<option value="g">Parlaments Autònoms de Governació (Tier 1)</option>
-						<option value="c">Consells de Detall Comarcal (Tier 2)</option>
+						<option value="g">Parlaments Autònoms de Governació </option>
+						<option value="c">Consells Comarcals </option>
 					</select>
 				</div>
 
@@ -1189,10 +1177,10 @@
     
 			<div style="display: flex; gap: 8px; margin-bottom: 10px;">
 				<button id="btn-exportar-mapa" style="flex: 1; padding: 8px; background-color: #10b981; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px;">
-					📤 Exportar Mapa
+					 Exportar Mapa
 				</button>
 				<button id="btn-importar-mapa" style="flex: 1; padding: 8px; background-color: #6366f1; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px;">
-					📥 Importar Mapa
+					 Importar Mapa
 				</button>
 			</div>
 
@@ -1200,7 +1188,7 @@
 			<div id="zona-compartir" style="display: none; flex-direction: column; gap: 8px;">
 				<textarea id="text-intercanvi" rows="4" placeholder="Enganxa ací la seqüència de text per importar..." style="width: 100%; padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 12px; font-family: monospace;"></textarea>
 				<button id="btn-processar-importacio" style="width: 100%; padding: 6px; background-color: #475569; color: white; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer;">
-					🔄 Processar text d'importació
+					 Processar text d'importació
 				</button>
 			</div>
 		</div>
