@@ -27,8 +27,8 @@ const canvasMain = document.getElementById('canvas-main');
 const tId = document.getElementById('t-id');
 const tDetall = document.getElementById('t-detall');
 
-v.scrollLeft = 850;
-v.scrollTop = 950;
+v.scrollLeft = 0;
+v.scrollTop = 0;
 
 function syncZoom() { 
     document.getElementById('election-svg').style.transform = `scale(${zoomScale})`; 
@@ -490,30 +490,33 @@ function refrescarEtiquetesSobreMapa() {
 }
 
  
+
+
 /**
  * ==========================================================================
- * 5. MOTORS DE SCROLL DIRECTE I ZOOM VECTORIAL MATRICIAL DE CONTORN (VIEWBOX + MÒBIL)
+ * 5. MOTORS DE SCROLL DIRECTE I ZOOM VECTORIAL MATRICIAL DE CONTORN (CORREGIT)
  * ==========================================================================
  */
 let isMouseDown = false;
 let startX, startY, scrollLeft, scrollTop;
 let isStaticClick = true;
 
-// 🚀 Memòria de punters per a pantalles tàctils i gestos de zoom mòbil
+// Memòria de punters unificada per a pantalles tàctils i ratolí
 let puntersActiusAlMapa = new Map();
 let distanciaInicialDits = 0;
 
-// Mides base del fitxer que defineixen la relació d'aspecte original
 const viewBoxOriginal = { x: 0, y: 0, w: 1296, h: 1760 }; 
 let currentViewBox = { ...viewBoxOriginal };
 
-// --- 5.1 GESTIÓ DEL DESPLAÇAMENT (DRAG / PAN) ---
+// Trobem l'element .map-canvas que envolta l'SVG per poder canviar-li la mida real
+const contenidorFisicCanvas = document.querySelector('.map-canvas');
+
+// --- 5.1 GESTIÓ DEL DESPLAÇAMENT (DRAG / PAN ADAPTAT AMB SCROLL DE FINESTRA) ---
 v.addEventListener(startEvent, (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     
     puntersActiusAlMapa.set(e.pointerId, e);
     
-    // Si fan el gest de dos dits (zoom), desactivem el desplaçament d'un sol dit
     if (puntersActiusAlMapa.size > 1) {
         isMouseDown = false;
         return;
@@ -539,45 +542,18 @@ window.addEventListener(moveEvent, (e) => {
 
     if (!isMouseDown || puntersActiusAlMapa.size > 1) return;
 
-    const svgEl = document.querySelector('svg');
-    if (!svgEl) return;
-
-    const rect = svgEl.getBoundingClientRect();
-
-    // Calculem quant s'ha desplaçat el cursor des del punt d'inici
     const x = e.clientX;
     const y = e.clientY;
-    const deltaX = x - startX;
-    const deltaY = y - startY;
+    const walkX = (x - startX) * 1.2; 
+    const walkY = (y - startY) * 1.2;
     
-    if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
+    if (Math.abs(walkX) > 3 || Math.abs(walkY) > 3) {
         isStaticClick = false; 
     }
-
-    // Convertim els píxels arrossegats de la pantalla a unitats reals de la viewBox interna
-    const factorConversioX = currentViewBox.w / rect.width;
-    const factorConversioY = currentViewBox.h / rect.height;
-
-    // Movem la caixa de visió de la viewBox en la direcció oposada de l'arrossegament
-    currentViewBox.x -= deltaX * factorConversioX;
-    currentViewBox.y -= deltaY * factorConversioY;
-
-    // Apliquem els topalls de desplaçament perquè no pugues eixir de les vores del regne
-    if (currentViewBox.x < 0) currentViewBox.x = 0;
-    if (currentViewBox.y < 0) currentViewBox.y = 0;
-    if (currentViewBox.x + currentViewBox.w > viewBoxOriginal.w) currentViewBox.x = viewBoxOriginal.w - currentViewBox.w;
-    if (currentViewBox.y + currentViewBox.h > viewBoxOriginal.h) currentViewBox.y = viewBoxOriginal.h - currentViewBox.h;
-
-    // Actualitzem l'SVG
-    svgEl.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.w} ${currentViewBox.h}`);
-
-    // Reiniciem el punt de partida per al següent frame del desplaçament
-    startX = x;
-    startY = y;
-
+    v.scrollLeft = scrollLeft - walkX;
+    v.scrollTop = scrollTop - walkY;
     refrescarEtiquetesSobreMapa();
 });
-
 
 const finalitzarInteraccioPunter = (e) => {
     puntersActiusAlMapa.delete(e.pointerId);
@@ -590,58 +566,56 @@ window.addEventListener(endEvent, finalitzarInteraccioPunter);
 window.addEventListener('pointercancel', finalitzarInteraccioPunter);
 
 
-// --- 5.2 FUNCIÓ INTERNA CENTRAL DE ZOOM (SENSE MOVIMENT DIAGONAL I ANTIPARET BLANCA) ---
+// --- 5.2 FUNCIÓ INTERNA CENTRAL DE ZOOM PROPORCIONAL ANTI-DESCENTRAT ---
 function executarZoomViewBox(factor, focusClientX, focusClientY) {
     const svgEl = document.querySelector('svg');
-    if (!svgEl) return;
+    if (!svgEl || !contenidorFisicCanvas) return;
     
     const rect = svgEl.getBoundingClientRect();
+    const rectV = v.getBoundingClientRect();
     
-    // 1. Trobem el punt exacte de focus dins de la malla virtual SVG (Inalterable)
+    // 1. Guardem la posició del focus de la pantalla en píxels de la finestra finestra
+    const focusFinestraX = focusClientX - rectV.left;
+    const focusFinestraY = focusClientY - rectV.top;
+    
+    // 2. Calculem els punts absoluts on es troba el cursor dins del mapa desplaçat
+    const mapaPreviX = focusFinestraX + v.scrollLeft;
+    const mapaPreviY = focusFinestraY + v.scrollTop;
+
+    // 3. Trobem el punt de focus dins de la llent virtual del viewBox de l'SVG
     const mouseX = (focusClientX - rect.left) * (currentViewBox.w / rect.width) + currentViewBox.x;
     const mouseY = (focusClientY - rect.top) * (currentViewBox.h / rect.height) + currentViewBox.y;
 
-    // 2. Calculem quina serà la nova amplada i alçada de la "lent" del visor
     let nouW = currentViewBox.w * factor;
     let nouH = currentViewBox.h * factor;
     const nivellZoomCalculat = viewBoxOriginal.w / nouW;
 
-    // 3. Apliquem els teus límits de zoom originals (0.4x a 40x)
+    // 4. Límits de zoom (0.4x a 40x)
     if (nivellZoomCalculat >= 0.4 && nivellZoomCalculat <= 40) {
         
-        // 4. Calculem cap a on s'ha d'ajustar la càmera (viewBox) perquè el focus no canvie
+        // 5. Ajustem la posició de la càmera virtual (viewBox)
         currentViewBox.x = mouseX - (mouseX - currentViewBox.x) * factor;
         currentViewBox.y = mouseY - (mouseY - currentViewBox.y) * factor;
         currentViewBox.w = nouW;
         currentViewBox.h = nouH;
-
-        // 🚀 LA SOLUCIÓ DE CONTROL DE MARGES (PROTECCIÓ ANTIPARET BLANCA):
-        // Quan desfaig el zoom (minimitze), si la lent es fa més gran que el mapa original,
-        // la confitem automàticament als límits reals per evitar que es veja la zona blanca.
-        if (currentViewBox.w >= viewBoxOriginal.w || currentViewBox.h >= viewBoxOriginal.h) {
-            currentViewBox.x = viewBoxOriginal.x;
-            currentViewBox.y = viewBoxOriginal.y;
-            currentViewBox.w = viewBoxOriginal.w;
-            currentViewBox.h = viewBoxOriginal.h;
-        }
-
-        // 5. Injectem el moviment virtual net de càmera (sense interferir en el scroll de la finestra)
+        
         svgEl.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.w} ${currentViewBox.h}`);
         
-        // 6. Sincronitzem la mida física del contenidor HTML de l'SVG perquè cresca en fer zoom
-        svgEl.style.width = `${viewBoxOriginal.w * nivellZoomCalculat}px`;
-        svgEl.style.height = `${viewBoxOriginal.h * nivellZoomCalculat}px`;
+        // 🚀 LA RESOLUCIÓ DEFINITIVA: Canviem de tamany la caixa HTML que conté el mapa
+        const ampleFisic = viewBoxOriginal.w * nivellZoomCalculat;
+        const altFisic = viewBoxOriginal.h * nivellZoomCalculat;
         
-        // 🚀 NETEJA DE SCROLLS: Deixem el scroll del pare a zero perquè només treballe la viewBox,
-        // d'aquesta manera s'elimina per complet el salt en diagonal!
-        if (v.scrollLeft !== 0) v.scrollLeft = 0;
-        if (v.scrollTop !== 0) v.scrollTop = 0;
+        contenidorFisicCanvas.style.width = `${ampleFisic}px`;
+        contenidorFisicCanvas.style.height = `${altFisic}px`;
+        
+        // 🚀 CORRECCIÓ DE COIXÍ: Recollim o ampliem les barres de scroll acompanyant el moviment
+        // d'aquesta manera s'elimina el salt en diagonal i l'efecte "paret blanca" en minimitzar.
+        v.scrollLeft = (mapaPreviX * (1 / factor)) - focusFinestraX;
+        v.scrollTop = (mapaPreviY * (1 / factor)) - focusFinestraY;
         
         refrescarEtiquetesSobreMapa();
     }
 }
-
-
 
 
 // --- 5.3 ZOOM PER A ESCRIPTORI (RODA DEL RATOLÍ) ---
@@ -671,13 +645,12 @@ v.addEventListener('pointermove', (e) => {
     const distanciaActualDits = Math.sqrt(dx * dx + dy * dy);
 
     if (distanciaInicialDits > 0) {
-        // Trobem el centre del gest dels dos dits a la pantalla per fer-lo servir de focus
         const centreMobilX = (llistaDits[0].clientX + llistaDits[1].clientX) / 2;
         const centreMobilY = (llistaDits[0].clientY + llistaDits[1].clientY) / 2;
 
         const ratioMobil = distanciaActualDits / distanciaInicialDits;
         
-        // Invertim la ràtio per correspondre amb la reducció/ampliació de la caixa de visió
+        // Invertim la ràtio per adequar-la al moviment de reducció de viewBox
         let factor = 1 + (1 / ratioMobil - 1) * 0.25; 
 
         executarZoomViewBox(factor, centreMobilX, centreMobilY);
@@ -691,6 +664,7 @@ window.addEventListener(endEvent, (e) => {
         distanciaInicialDits = 0;
     }
 });
+
 
 
 
