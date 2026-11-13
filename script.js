@@ -563,39 +563,69 @@ window.addEventListener(endEvent, finalitzarInteraccioPunter);
 window.addEventListener('pointercancel', finalitzarInteraccioPunter);
 
 
-// --- 5.2 FUNCIÓ INTERNA CENTRAL DE ZOOM (PROPORCIONAL AMB VIEWBOX) ---
+// --- 5.2 FUNCIÓ INTERNA CENTRAL DE ZOOM (CORREGIDA SENSE DESPLAÇAMENT DE COIXÍ) ---
 function executarZoomViewBox(factor, focusClientX, focusClientY) {
     const svgEl = document.querySelector('svg');
     if (!svgEl) return;
     
     const rect = svgEl.getBoundingClientRect();
+    const rectV = v.getBoundingClientRect();
     
-    // 1. Trobem on ha caigut el focus del zoom dins de la malla virtual de coordenades de l'SVG
+    // 1. Guardem on està el focus del cursor actual respecte a la finestra '#v'
+    const cursorEnFinestraX = focusClientX - rectV.left;
+    const cursorEnFinestraY = focusClientY - rectV.top;
+
+    // 2. Trobem on ha caigut el focus del zoom dins de la malla virtual de coordenades de l'SVG
     const mouseX = (focusClientX - rect.left) * (currentViewBox.w / rect.width) + currentViewBox.x;
     const mouseY = (focusClientY - rect.top) * (currentViewBox.h / rect.height) + currentViewBox.y;
 
-    // 2. Calculem les noves dimensions virtuals del visor
+    // 3. Calculem les noves dimensions virtuals de la lent del visor
     let nouW = currentViewBox.w * factor;
     let nouH = currentViewBox.h * factor;
     const nivellZoomCalculat = viewBoxOriginal.w / nouW;
 
-    // 3. Apliquem els teus límits originals (0.4x a 40x)
+    // 4. Apliquem els teus límits originals (0.4x a 40x)
     if (nivellZoomCalculat >= 0.4 && nivellZoomCalculat <= 40) {
+        
+        // Guardem les mides i posicions físiques de desplaçament ABANS de canviar el zoom
+        const scrollAnteriorX = v.scrollLeft;
+        const scrollAnteriorY = v.scrollTop;
+        
+        // Calculem quina posició exacta del mapa real estava mirant l'usuari
+        const puntAbsolutMapaX = cursorEnFinestraX + scrollAnteriorX;
+        const puntAbsolutMapaY = cursorEnFinestraY + scrollAnteriorY;
+
+        // Actualitzem la caixa virtual del viewBox
         currentViewBox.x = mouseX - (mouseX - currentViewBox.x) * factor;
         currentViewBox.y = mouseY - (mouseY - currentViewBox.y) * factor;
         currentViewBox.w = nouW;
         currentViewBox.h = nouH;
         
-        // 🚀 LA CLAU: Cambiem el viewBox virtual i AJUSTEM LES DIMENSIONS FÍSIQUES de l'HTML!
         svgEl.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.w} ${currentViewBox.h}`);
         
-        // Fes que la mida real de la caixa de l'SVG cresca per donar espai de scroll al pare (#v)
+        // Ajustem la mida física de l'HTML (el mapa es fa gran o menut realment)
         svgEl.style.width = `${viewBoxOriginal.w * nivellZoomCalculat}px`;
         svgEl.style.height = `${viewBoxOriginal.h * nivellZoomCalculat}px`;
+        
+        // 🚀 LA SOLUCIÓ AL TEU ERROR: 
+        // Calculem on hauria de caure el desplaçament (scroll) de la finestra amb la nova mida
+        // perquè el punt que miraves es quede immòbil a la pantalla.
+        const nouScrollX = (puntAbsolutMapaX * (1 / factor)) - cursorEnFinestraX;
+        const nouScrollY = (puntAbsolutMapaY * (1 / factor)) - cursorEnFinestraY;
+        
+        // Apliquem el desplaçament corregit immediatament
+        v.scrollLeft = nouScrollX;
+        v.scrollTop = nouScrollY;
+        
+        // 🛡️ SEGURETAT EXTRAPROTECTORA: Si en fer-se xicotet, el scroll de la finestra s'ha quedat
+        // desajustat fora dels marges reals de l'SVG, forcem el navegador aネットejar valors negatius.
+        if (v.scrollLeft < 0) v.scrollLeft = 0;
+        if (v.scrollTop < 0) v.scrollTop = 0;
         
         refrescarEtiquetesSobreMapa();
     }
 }
+
 
 
 // --- 5.3 ZOOM PER A ESCRIPTORI (RODA DEL RATOLÍ) ---
