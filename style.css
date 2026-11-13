@@ -110,6 +110,8 @@ select:focus {
     display: flex; 
     align-items: center; 
     justify-content: center; 
+	touch-action: none; 
+    user-select: none;
 }
 
 /* L'objecte SVG real adaptat per a expandir-se dinàmicament pel finestrer */
