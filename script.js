@@ -15,6 +15,10 @@ let mostrarEtiquetesActiu = false;
 
 let modeExploracioActiu = false; // Memòria del interruptor de navegació
 
+const startEvent = window.PointerEvent ? 'pointerdown' : 'mousedown';
+const moveEvent  = window.PointerEvent ? 'pointermove' : 'mousemove';
+const endEvent   = window.PointerEvent ? 'pointerup'   : 'mouseup';
+
 
  
 
