@@ -69,7 +69,7 @@ select:focus {
     position: relative; 
     background-color: #fafafa; 
     border-right: 2px solid #cbd5e1; 
-    overflow: hidden; 
+    overflow: auto; 
     cursor: grab; 
 }
 
@@ -80,9 +80,13 @@ select:focus {
 /*  OPTIMITZAT: Eliminem l'àrea gegant estàtica de 3000px perquè el motor actua per viewBox */
 /* Troba aquesta secció al teu style.css i canvia el percentatge per píxels reals 👇 */
 .scroll-area {
-    width: 3000px; /* Tornem als valors fixos per seguretat de scroll de maquinari */
-    height: 3000px;
+    width: 100%;
+    height: 100%;
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #ffffff; /* Aquesta és la teva zona blanca on flota el mapa */
 }
 
 /* Costat Dret: Taula de detalls fixa */
@@ -103,11 +107,11 @@ select:focus {
 /*  OPTIMITZAT: El llenç ara ocupa el 100% lliure del finestrer esquerre per a fer el zoom fluid */
 .map-canvas { 
     position: absolute; 
-    width: 600px;   
-    height: 815px; 
-    top: 278px;    
-    left: 600px; 
-    display: flex; 
+    width: 1296px;   
+    height: 1760px; 
+    top: 0px;    
+    left: 0px; 
+    display: block; 
     align-items: center; 
     justify-content: center; 
 	touch-action: none; 
@@ -118,6 +122,7 @@ select:focus {
 #election-svg { 
     width: 100%; 
     height: 100%; 
+	display: block;
     background-color: transparent;
     max-width: none !important;
     max-height: none !important;
