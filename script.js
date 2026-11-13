@@ -29,10 +29,10 @@ const tDetall = document.getElementById('t-detall');
 
 v.scrollLeft = 850;
 v.scrollTop = 950;
-/*
+
 function syncZoom() { 
     document.getElementById('election-svg').style.transform = `scale(${zoomScale})`; 
-}*/
+}
 
 const diccionariNomsGovernacions = {
     1: "Governació de l'Uixò (o de Castelló)",
@@ -492,24 +492,28 @@ function refrescarEtiquetesSobreMapa() {
  
 /**
  * ==========================================================================
- * 5. MOTORS DE SCROLL DIRECTE I ZOOM VECTORIAL PER ESCALA REAL (SOLUCIÓ FINESTRA)
+ * 5. MOTORS DE SCROLL DIRECTE I ZOOM VECTORIAL MATRICIAL DE CONTORN (VIEWBOX + MÒBIL)
  * ==========================================================================
  */
 let isMouseDown = false;
 let startX, startY, scrollLeft, scrollTop;
 let isStaticClick = true;
 
-// Memòria de punters per a pantalles tàctils
+// 🚀 Memòria de punters per a pantalles tàctils i gestos de zoom mòbil
 let puntersActiusAlMapa = new Map();
 let distanciaInicialDits = 0;
 
-// --- 5.1 DESPLAÇAMENT DEL MAPA (DRAG / PAN) ---
+// Mides base del fitxer que defineixen la relació d'aspecte original
+const viewBoxOriginal = { x: 0, y: 0, w: 1296, h: 1760 }; 
+let currentViewBox = { ...viewBoxOriginal };
+
+// --- 5.1 GESTIÓ DEL DESPLAÇAMENT (DRAG / PAN) ---
 v.addEventListener(startEvent, (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
     
     puntersActiusAlMapa.set(e.pointerId, e);
     
-    // Si fan el gest de dos dits, cancel·lem el desplaçament d'un sol dit
+    // Si fan el gest de dos dits (zoom), desactivem el desplaçament d'un sol dit
     if (puntersActiusAlMapa.size > 1) {
         isMouseDown = false;
         return;
@@ -537,10 +541,8 @@ window.addEventListener(moveEvent, (e) => {
 
     const x = e.clientX;
     const y = e.clientY;
-    
-    // El moviment s'adapta al nivell de zoom actual per mantindre la suavitat
-    const walkX = (x - startX) * 1.2;
-    const walkY = (y - startY) * 1.2;
+    const walkX = (x - startX) * 1.5; 
+    const walkY = (y - startY) * 1.5;
     
     if (Math.abs(walkX) > 3 || Math.abs(walkY) > 3) {
         isStaticClick = false; 
@@ -561,49 +563,46 @@ window.addEventListener(endEvent, finalitzarInteraccioPunter);
 window.addEventListener('pointercancel', finalitzarInteraccioPunter);
 
 
-// --- 5.2 LÒGICA MATEMÀTICA DEL ZOOM CENTRAT EN EL CURSOR ---
-// (Substitueix la gestió del viewBox per transformació d'escala real)
-function aplicarZoomAmbFocus(factor, focusClientX, focusClientY) {
-    const svgEl = document.getElementById('election-svg');
+// --- 5.2 FUNCIÓ INTERNA CENTRAL DE ZOOM (PROPORCIONAL AMB VIEWBOX) ---
+function executarZoomViewBox(factor, focusClientX, focusClientY) {
+    const svgEl = document.querySelector('svg');
     if (!svgEl) return;
-
-    const nouZoom = zoomScale * factor;
     
-    // Límits protectors de zoom (per exemple, de 0.5x fins a 12x de tamany)
-    if (nouZoom < 0.5 || nouZoom > 12) return;
-
-    // Trobem la posició del cursor respecte al contenidor finestra '#v'
-    const rectV = v.getBoundingClientRect();
-    const cursorEnFinestraX = focusClientX - rectV.left;
-    const cursorEnFinestraY = focusClientY - rectV.top;
-
-    // Calculem on ens trobàvem abans del zoom dins del desplaçament intern
-    const mapaActualX = cursorEnFinestraX + v.scrollLeft;
-    const mapaActualY = cursorEnFinestraY + v.scrollTop;
-
-    // Actualitzem la teva variable global de zoom del regne
-    zoomScale = nouZoom;
+    const rect = svgEl.getBoundingClientRect();
     
-    // Executem la transformació visual de l'escala
-    svgEl.style.transform = `scale(${zoomScale})`;
+    // 1. Trobem on ha caigut el focus del zoom dins de la malla virtual de coordenades de l'SVG
+    const mouseX = (focusClientX - rect.left) * (currentViewBox.w / rect.width) + currentViewBox.x;
+    const mouseY = (focusClientY - rect.top) * (currentViewBox.h / rect.height) + currentViewBox.y;
 
-    // Ajustem els controls de scroll de la finestra automàticament 
-    // perquè el punt que estaves mirant es quede fix al mateix lloc de la pantalla
-    v.scrollLeft = (mapaActualX * factor) - cursorEnFinestraX;
-    v.scrollTop = (mapaActualY * factor) - cursorEnFinestraY;
+    // 2. Calculem les noves dimensions virtuals del visor
+    let nouW = currentViewBox.w * factor;
+    let nouH = currentViewBox.h * factor;
+    const nivellZoomCalculat = viewBoxOriginal.w / nouW;
 
-    refrescarEtiquetesSobreMapa();
+    // 3. Apliquem els teus límits originals (0.4x a 40x)
+    if (nivellZoomCalculat >= 0.4 && nivellZoomCalculat <= 40) {
+        currentViewBox.x = mouseX - (mouseX - currentViewBox.x) * factor;
+        currentViewBox.y = mouseY - (mouseY - currentViewBox.y) * factor;
+        currentViewBox.w = nouW;
+        currentViewBox.h = nouH;
+        
+        // 🚀 LA CLAU: Cambiem el viewBox virtual i AJUSTEM LES DIMENSIONS FÍSIQUES de l'HTML!
+        svgEl.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.w} ${currentViewBox.h}`);
+        
+        // Fes que la mida real de la caixa de l'SVG cresca per donar espai de scroll al pare (#v)
+        svgEl.style.width = `${viewBoxOriginal.w * nivellZoomCalculat}px`;
+        svgEl.style.height = `${viewBoxOriginal.h * nivellZoomCalculat}px`;
+        
+        refrescarEtiquetesSobreMapa();
+    }
 }
 
 
 // --- 5.3 ZOOM PER A ESCRIPTORI (RODA DEL RATOLÍ) ---
 v.addEventListener('wheel', (e) => {
     e.preventDefault();
-    
-    // Si mous la roda amunt, factor d'ampliació, si no, de reducció
-    let factor = (e.deltaY < 0) ? 1.15 : 0.85;
-    
-    aplicarZoomAmbFocus(factor, e.clientX, e.clientY);
+    let factor = (e.deltaY < 0) ? 0.9 : 1.1;
+    executarZoomViewBox(factor, e.clientX, e.clientY);
 }, { passive: false });
 
 
@@ -626,17 +625,16 @@ v.addEventListener('pointermove', (e) => {
     const distanciaActualDits = Math.sqrt(dx * dx + dy * dy);
 
     if (distanciaInicialDits > 0) {
-        // Trobem el centre del gest dels dos dits en la pantalla
+        // Trobem el centre del gest dels dos dits a la pantalla per fer-lo servir de focus
         const centreMobilX = (llistaDits[0].clientX + llistaDits[1].clientX) / 2;
         const centreMobilY = (llistaDits[0].clientY + llistaDits[1].clientY) / 2;
 
-        // Calculem el canvi de distància
-        const ràtioMòbil = distanciaActualDits / distanciaInicialDits;
+        const ratioMobil = distanciaActualDits / distanciaInicialDits;
         
-        // Suavitzem el factor perquè el canvi entre frames de dit siga fluid
-        let factor = 1 + (ràtioMòbil - 1) * 0.25;
+        // Invertim la ràtio per correspondre amb la reducció/ampliació de la caixa de visió
+        let factor = 1 + (1 / ratioMobil - 1) * 0.25; 
 
-        aplicarZoomAmbFocus(factor, centreMobilX, centreMobilY);
+        executarZoomViewBox(factor, centreMobilX, centreMobilY);
     }
     
     distanciaInicialDits = distanciaActualDits;
