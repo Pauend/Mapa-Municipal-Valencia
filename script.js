@@ -608,53 +608,164 @@ v.addEventListener('pointerdown', (e) => {
 
 v.addEventListener('pointermove', (e) => {
     const svgEl = document.querySelector('svg');
-    if (!svgEl || puntersActiusAlMapa.size !== 2) return;
+/**
+ * ==========================================================================
+ * 5. MOTORS DE SCROLL DIRECTE I ZOOM VECTORIAL PER ESCALA REAL (SOLUCIÓ FINESTRA)
+ * ==========================================================================
+ */
+let isMouseDown = false;
+let startX, startY, scrollLeft, scrollTop;
+let isStaticClick = true;
+
+// Memòria de punters per a pantalles tàctils
+let puntersActiusAlMapa = new Map();
+let distanciaInicialDits = 0;
+
+// --- 5.1 DESPLAÇAMENT DEL MAPA (DRAG / PAN) ---
+v.addEventListener(startEvent, (e) => {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    
+    puntersActiusAlMapa.set(e.pointerId, e);
+    
+    // Si fan el gest de dos dits, cancel·lem el desplaçament d'un sol dit
+    if (puntersActiusAlMapa.size > 1) {
+        isMouseDown = false;
+        return;
+    }
+
+    isMouseDown = true;
+    isStaticClick = true;
+    
+    startX = e.clientX;
+    startY = e.clientY;
+    scrollLeft = v.scrollLeft;
+    scrollTop = v.scrollTop;
+    
+    if (v.setPointerCapture) {
+        v.setPointerCapture(e.pointerId);
+    }
+});
+
+window.addEventListener(moveEvent, (e) => {
+    if (puntersActiusAlMapa.has(e.pointerId)) {
+        puntersActiusAlMapa.set(e.pointerId, e);
+    }
+
+    if (!isMouseDown || puntersActiusAlMapa.size > 1) return;
+
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    // El moviment s'adapta al nivell de zoom actual per mantindre la suavitat
+    const walkX = (x - startX) * 1.2;
+    const walkY = (y - startY) * 1.2;
+    
+    if (Math.abs(walkX) > 3 || Math.abs(walkY) > 3) {
+        isStaticClick = false; 
+    }
+    v.scrollLeft = scrollLeft - walkX;
+    v.scrollTop = scrollTop - walkY;
+    refrescarEtiquetesSobreMapa();
+});
+
+const finalitzarInteraccioPunter = (e) => {
+    puntersActiusAlMapa.delete(e.pointerId);
+    if (puntersActiusAlMapa.size === 0) {
+        isMouseDown = false;
+    }
+};
+
+window.addEventListener(endEvent, finalitzarInteraccioPunter);
+window.addEventListener('pointercancel', finalitzarInteraccioPunter);
+
+
+// --- 5.2 LÒGICA MATEMÀTICA DEL ZOOM CENTRAT EN EL CURSOR ---
+// (Substitueix la gestió del viewBox per transformació d'escala real)
+function aplicarZoomAmbFocus(factor, focusClientX, focusClientY) {
+    const svgEl = document.getElementById('election-svg');
+    if (!svgEl) return;
+
+    const nouZoom = zoomScale * factor;
+    
+    // Límits protectors de zoom (per exemple, de 0.5x fins a 12x de tamany)
+    if (nouZoom < 0.5 || nouZoom > 12) return;
+
+    // Trobem la posició del cursor respecte al contenidor finestra '#v'
+    const rectV = v.getBoundingClientRect();
+    const cursorEnFinestraX = focusClientX - rectV.left;
+    const cursorEnFinestraY = focusClientY - rectV.top;
+
+    // Calculem on ens trobàvem abans del zoom dins del desplaçament intern
+    const mapaActualX = cursorEnFinestraX + v.scrollLeft;
+    const mapaActualY = cursorEnFinestraY + v.scrollTop;
+
+    // Actualitzem la teva variable global de zoom del regne
+    zoomScale = nouZoom;
+    
+    // Executem la transformació visual de l'escala
+    svgEl.style.transform = `scale(${zoomScale})`;
+
+    // Ajustem els controls de scroll de la finestra automàticament 
+    // perquè el punt que estaves mirant es quede fix al mateix lloc de la pantalla
+    v.scrollLeft = (mapaActualX * factor) - cursorEnFinestraX;
+    v.scrollTop = (mapaActualY * factor) - cursorEnFinestraY;
+
+    refrescarEtiquetesSobreMapa();
+}
+
+
+// --- 5.3 ZOOM PER A ESCRIPTORI (RODA DEL RATOLÍ) ---
+v.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    
+    // Si mous la roda amunt, factor d'ampliació, si no, de reducció
+    let factor = (e.deltaY < 0) ? 1.15 : 0.85;
+    
+    aplicarZoomAmbFocus(factor, e.clientX, e.clientY);
+}, { passive: false });
+
+
+// --- 5.4 ZOOM PER A MÒBIL (PESSIGAR AMB DOS DITS) ---
+v.addEventListener('pointerdown', (e) => {
+    if (puntersActiusAlMapa.size === 2) {
+        const llistaDits = Array.from(puntersActiusAlMapa.values());
+        const dx = llistaDits[0].clientX - llistaDits[1].clientX;
+        const dy = llistaDits[0].clientY - llistaDits[1].clientY;
+        distanciaInicialDits = Math.sqrt(dx * dx + dy * dy);
+    }
+});
+
+v.addEventListener('pointermove', (e) => {
+    if (puntersActiusAlMapa.size !== 2) return;
 
     const llistaDits = Array.from(puntersActiusAlMapa.values());
-    
-    // 1. Calculem la distància dinàmica actual entre els dos dits
     const dx = llistaDits[0].clientX - llistaDits[1].clientX;
     const dy = llistaDits[0].clientY - llistaDits[1].clientY;
     const distanciaActualDits = Math.sqrt(dx * dx + dy * dy);
 
     if (distanciaInicialDits > 0) {
-        // 2. Trobem el baricentre o punt mig del gest mòbil per clavar el focus en eixe punt exacte
+        // Trobem el centre del gest dels dos dits en la pantalla
         const centreMobilX = (llistaDits[0].clientX + llistaDits[1].clientX) / 2;
         const centreMobilY = (llistaDits[0].clientY + llistaDits[1].clientY) / 2;
 
-        const rect = svgEl.getBoundingClientRect();
-        const focusX = (centreMobilX - rect.left) * (currentViewBox.w / rect.width) + currentViewBox.x;
-        const focusY = (centreMobilY - rect.top) * (currentViewBox.h / rect.height) + currentViewBox.y;
+        // Calculem el canvi de distància
+        const ràtioMòbil = distanciaActualDits / distanciaInicialDits;
+        
+        // Suavitzem el factor perquè el canvi entre frames de dit siga fluid
+        let factor = 1 + (ràtioMòbil - 1) * 0.25;
 
-        // Ràtio d'obertura/tancament dels dits suavitzada al 20% d'elasticitat per frame
-        const ratioMobil = distanciaActualDits / distanciaInicialDits;
-        let factor = 1 + (1 / ratioMobil - 1) * 0.2; 
-
-        let nouW = currentViewBox.w * factor;
-        let nouH = currentViewBox.h * factor;
-        const nivellZoomCalculat = viewBoxOriginal.w / nouW;
-
-        // Comprovem si el pas respecta els marges que has estipulat a l'escriptori
-        if (nivellZoomCalculat >= 0.4 && nivellZoomCalculat <= 40) {
-            currentViewBox.x = focusX - (focusX - currentViewBox.x) * factor;
-            currentViewBox.y = focusY - (focusY - currentViewBox.y) * factor;
-            currentViewBox.w = nouW;
-            currentViewBox.h = nouH;
-            svgEl.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.w} ${currentViewBox.h}`);
-            refrescarEtiquetesSobreMapa();
-        }
+        aplicarZoomAmbFocus(factor, centreMobilX, centreMobilY);
     }
     
-    // Guardem la distància de referència per a la següent iteració en viu
     distanciaInicialDits = distanciaActualDits;
 });
 
 window.addEventListener(endEvent, (e) => {
-    // Si l'usuari ja ha alçat un dels dos dits, resetejem l'escalador base
     if (puntersActiusAlMapa.size < 2) {
         distanciaInicialDits = 0;
     }
 });
+
 
 
 v.addEventListener('mousedown', (e) => {
