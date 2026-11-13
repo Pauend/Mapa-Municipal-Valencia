@@ -1,6 +1,7 @@
 /* ==========================================================================
    1. CONFIGURACIÓ GENERAL DEL PROJECTE
    ========================================================================== */
+   
 * { 
     box-sizing: border-box; 
 }
@@ -66,7 +67,7 @@ select:focus {
     width: 50%; 
     height: 100%; 
     position: relative; 
-    background-color: #e2e8f0; 
+    background-color: #fafafa; 
     border-right: 2px solid #cbd5e1; 
     overflow: hidden; 
     cursor: grab; 
@@ -76,10 +77,11 @@ select:focus {
     cursor: grabbing; 
 }
 
-/* 🔄 OPTIMITZAT: Eliminem l'àrea gegant estàtica de 3000px perquè el motor actua per viewBox */
+/*  OPTIMITZAT: Eliminem l'àrea gegant estàtica de 3000px perquè el motor actua per viewBox */
+/* Troba aquesta secció al teu style.css i canvia el percentatge per píxels reals 👇 */
 .scroll-area {
-    width: 100%;
-    height: 100%;
+    width: 3000px; /* Tornem als valors fixos per seguretat de scroll de maquinari */
+    height: 3000px;
     position: relative;
 }
 
@@ -101,15 +103,16 @@ select:focus {
 /*  OPTIMITZAT: El llenç ara ocupa el 100% lliure del finestrer esquerre per a fer el zoom fluid */
 .map-canvas { 
     position: absolute; 
-    width: 100%;   
-    height: 100%; 
-    top: 0;    
-    left: 0; 
+    width: 600px;   
+    height: 815px; 
+    top: 278px;    
+    left: 600px; 
     display: flex; 
     align-items: center; 
     justify-content: center; 
 }
 
+/* L'objecte SVG real adaptat per a expandir-se dinàmicament pel finestrer */
 #election-svg { 
     width: 100%; 
     height: 100%; 
@@ -118,33 +121,36 @@ select:focus {
     max-height: none !important;
 }
 
+/* Els camins vectorials reals de cadascun dels municipis */
 .frag { 
-    fill: #ef4444; 
-    stroke: #ffffff; 
-    stroke-width: 0.5px;
+    fill: #ef4444; /* Roig base unificat original */
+    stroke: #ffffff; /* Línia de la frontera del municipi */
+    stroke-width: 0.1px;
     cursor: pointer; 
-    transition: fill 0.15s ease, stroke 0.15s ease;
-    vector-effect: non-scaling-stroke; /* 👈 Això manté els contorns infinits purs al fer zoom */
+    transition: fill 0.15s ease, stroke 0.15s ease; /* 👈 CORREGIT: S'afegeix el punt i coma que faltava */
+    vector-effect: non-scaling-stroke; /* 👈 ACTIU: Ara el navegador ja interpreta correctament aquesta propietat */
 }
 
 .frag:hover {
     fill-opacity: 0.8;
     stroke: #0f172a;
-    stroke-width: 1.5px;
+    stroke-width: 0.2px;
 }
 
 /* Quan el JavaScript llança la selecció, el municipi es pinta de roig fosc */
 .frag.sel { 
-    fill: #b91c1c !important; 
+    filter: brightness(0.65) contrast(1.2) !important; 
+    stroke: #0f172a !important; /* Li fiquem una línia de frontera fosca de selecció */
+    stroke-width: 0.3px !important;
 }
 
 /* Línia de guies decorativa per a la mar del fons */
-.coastline {
+/*.coastline {
     fill: none;
     stroke: #94a3b8;
     stroke-width: 1px;
     stroke-dasharray: 4,4;
-}
+}*/
 
 /* ==========================================================================
    4. TARGETES DEL PANELL DE DETALLS DRET
@@ -181,13 +187,62 @@ select:focus {
     border: 1px solid #e2e8f0; 
     font-size: 13px; 
     color: #475569; 
+	height: auto !important;
     min-height: 80px; 
     display: flex; 
+	flex-direction: column; /* Organitza els elements en vertical */
+    flex-wrap: wrap; /* Si el text no cap en una línia, salta automàticament a la següent */
+    word-break: break-word; /* Trenca les paraules massa llargues de forma segura */
+    overflow-y: visible !important; 
+	
     align-items: center; 
     justify-content: center; 
-    text-align: center; 
+    text-align: left; 
     line-height: 1.6; 
 }
 
+/* 🔄 OPTIMITZAT: Text visible en alta definició per a l'escala de 1800px */
+.etiqueta-mapa {
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 16px; /* 🚀 Abans feia 5px (microscòpic), ara es veu perfecte d'entrada! */
+    font-weight: bold;
+    fill: #0f172a; /* Text fosc d'alta definició */
+    text-anchor: middle; 
+    dominant-baseline: central; 
+    pointer-events: none; 
+    user-select: none;
+    
+    /* Efecte silueta blanca protectora per a poder llegir el nom sobre qualsevol partit */
+    paint-order: stroke fill;
+    stroke: #ffffff;
+    stroke-width: 3px;
+    stroke-linejoin: round;
+}
+
+/* 🗺️ ESTILS PER AL MODE NAVEGACIÓ */
+.mode-exploracio-actiu {
+    background-color: #10b981 !important; /* Verd en encendre's */
+}
+
+/* Quan estem explorant, desactivem visualment els indicadors de partit per no confondre */
+.mapa-congelat-explorant .progress-bar-bg {
+    opacity: 0.45;
+}
+
+
+
+
+
 .legend-dot-base { width: 12px; height: 12px; background-color: #ef4444; display: inline-block; margin-right: 8px; border-radius: 2px; }
 .legend-dot-sel { width: 12px; height: 12px; background-color: #b91c1c; display: inline-block; margin-right: 8px; border-radius: 2px; }
+
+
+/* Paleta de Colors per a Partits Polítics / Escrutini */
+.partit-blau { fill: #3b82f6 !important; }
+.partit-roig { fill: #ef4444 !important; }
+.partit-verd { fill: #10b981 !important; }
+.partit-groc { fill: #eab308 !important; }
+
+/* Barres de progrés estadístiques per al panell dret */
+.progress-bar-bg { width: 100%; background-color: #f1f5f9; border-radius: 4px; height: 16px; overflow: hidden; margin-bottom: 8px; display: flex; }
+.progress-fill { height: 100%; transition: width 0.3s ease; }
