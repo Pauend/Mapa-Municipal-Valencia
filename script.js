@@ -33,6 +33,7 @@ function syncZoom() {
 }
 
 const diccionariNomsGovernacions = {
+	0: " ",
     1: "Governació de l'Uixò (o de Castelló)",
     2: "Governació de l'Interior",
     3: "Governació del Túria (o de València)",
@@ -88,6 +89,7 @@ const diccionariNomsComarques = {
 };
 
 const diccionariNomsSubcomarques = {
+	0: " ",
     1: "la Tinença de Benifassà",
     2: "els Ports",
     3001: "Castell de Peníscola",
@@ -1283,6 +1285,222 @@ window.addEventListener('DOMContentLoaded', () => {
             renderSelectionColors();
         };
     }
+
+	// ==========================================================================
+	// MOTOR D'IMPORTACIÓ DINÀMIC MULTI-PARTIT ULTRA-PROTEGIT (CSV)
+	// ==========================================================================
+	const inputCsvMassiu = document.getElementById('csv-file-input');
+
+	if (inputCsvMassiu) {
+		inputCsvMassiu.addEventListener('change', function(e) {
+			const arxiuSeleccionat = e.target.files[0]; // Asegurem agafar el primer arxiu
+			if (!arxiuSeleccionat) return;
+
+			const lectorFitxers = new FileReader();
+			
+			lectorFitxers.onload = function(esdeveniment) {
+				try {
+					let contingutText = esdeveniment.target.result;
+					
+					// SEGURETAT 1: Eliminem el caràcter invisible BOM de UTF-8 que clava l'Excel
+					if (contingutText.startsWith('\uFEFF')) {
+						contingutText = contingutText.substring(1);
+					}
+
+					// SEGURETAT 2: Trossegem de manera universal per a qualsevol sistema operatiu (Win/Mac/Linux)
+					const filesCSV = contingutText.split(/\r?\n|\r/);
+					
+					if (filesCSV.length < 2) {
+						alert("⚠️ Error: El fitxer està buit o no s'ha pogut leer cap línia.");
+						return;
+					}
+
+					// 1. LLEGIM LA CAPÇALERA (Fila 0)
+					const primeralinia = filesCSV[0].trim();
+					const capçalera = primeralinia.split(',');
+					
+					if (capçalera.length < 4) {
+						alert("⚠️ Error: El format del CSV no és correcte. Ha de tenir com a mínim les columnes: id, poblacio, ressenya i un partit.");
+						return;
+					}
+
+					const índexPartits = {};
+
+					// Recorrem les columnes de partits (a partir de la posició 3)
+					for (let c = 3; c < capçalera.length; c++) {
+						const nomPartitCSV = capçalera[c].trim().replace(/^["']|["']$/g, ''); // Neteja de cometes
+						if (!nomPartitCSV) continue;
+
+						let idPartitTrobat = null;
+						Object.keys(diccionariPartits).forEach(idP => {
+							if (diccionariPartits[idP].nom.toLowerCase() === nomPartitCSV.toLowerCase()) {
+								idPartitTrobat = idP;
+							}
+						});
+
+						// Si el partit és nou, el registrem automàticament
+						if (!idPartitTrobat) {
+							idPartitTrobat = `partit-dinamic-${nomPartitCSV.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+							
+							// Generem un color aleatori vistós i lluminós
+							const colorAleatori = `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`;
+							
+							diccionariPartits[idPartitTrobat] = { 
+								nom: nomPartitCSV.toUpperCase(), 
+								color: colorAleatori 
+							};
+						}
+
+						índexPartits[c] = idPartitTrobat;
+					}
+
+					// Actualitzem la paleta de botons de la dreta
+					if (typeof actualitzarInterficiePartits === 'function') actualitzarInterficiePartits();
+
+					let vilesActualitzades = 0;
+
+					// 2. LLEGIM LES DADES DE CADA MUNICIPI
+					for (let i = 1; i < filesCSV.length; i++) {
+						const filaNeta = filesCSV[i].trim();
+						if (!filaNeta) continue;
+
+						const columnes = filaNeta.split(',');
+						const idM = parseInt(columnes[0], 10) - 1; // Columna 0 = ID (ajustat a índex 0)
+						
+						if (isNaN(idM) || idM < 0 || idM >= 538) continue;
+
+						const dadaPoblacio = parseInt(columnes[1], 10) || 0; // Columna 1 = Població
+						const dadaRessenya = columnes[2] ? columnes[2].replace(/"/g, '') : ""; // Columna 2 = Ressenya
+
+						const estructuraVotsLocals = {};
+						
+						// Inicialitzem tots els partits activats a 0 per a aquest municipi
+						Object.keys(diccionariPartits).forEach(idP => estructuraVotsLocals[idP] = 0);
+
+						// Injectem els vots llegits des de les seues columnes dinàmiques
+						Object.keys(índexPartits).forEach(colIdx => {
+							const idPartit = índexPartits[colIdx];
+							const votsPartit = parseInt(columnes[colIdx], 10) || 0;
+							estructuraVotsLocals[idPartit] = votsPartit;
+						});
+
+						// Guardem la fitxa en memòria
+						baseDadesDetallsMunicipis[idM] = {
+							vots: estructuraVotsLocals,
+							text: dadaRessenya,
+							poblacio: dadaPoblacio > 0 ? dadaPoblacio : ""
+						};
+
+						// 3. RECOMPTE LOCAL PER AL COLOR DEL MAPA
+						let maximVotsCercats = 0;
+						let partitGuanyadorLocal = null;
+
+						Object.keys(estructuraVotsLocals).forEach(idPartit => {
+							if (estructuraVotsLocals[idPartit] > maximVotsCercats) {
+								maximVotsCercats = estructuraVotsLocals[idPartit];
+								partitGuanyadorLocal = idPartit;
+							}
+						});
+
+						if (maximVotsCercats > 0 && partitGuanyadorLocal) {
+							baseDadesColorsElectorals[idM] = partitGuanyadorLocal;
+						} else {
+							delete baseDadesColorsElectorals[idM];
+						}
+
+						vilesActualitzades++;
+					}
+
+					// 4. REFRESC GENERAL DELS COMANTS VISUALS
+					if (typeof renderSelectionColors === 'function') renderSelectionColors();
+					if (typeof calcularEscrutiniGlobal === 'function') calcularEscrutiniGlobal();
+					if (typeof up === 'function') up(null);
+
+					alert(`🚀 S'han carregat correctament ${vilesActualitzades} municipis!`);
+
+				} catch (error) {
+					console.error(error);
+					alert("⚠️ S'ha produït un error en processar el contingut del CSV. Revisa el format de les files.");
+				}
+				
+				inputCsvMassiu.value = '';
+			};
+
+			lectorFitxers.readAsText(arxiuSeleccionat);
+		});
+	}
+
+	// ==========================================================================
+	// MOTOR GENERADOR DE PLANTILLA CSV AMB NOMS REALS DE MUNICIPIOS
+	// ==========================================================================
+	const btnGenerarPlantilla = document.getElementById('btn-exportar-plantilla');
+
+	if (btnGenerarPlantilla) {
+		btnGenerarPlantilla.onclick = function() {
+			// 1. Busquem tots els municipis directament en els vectors del mapa SVG
+			const caminsMunicipis = document.querySelectorAll('#election-svg .frag');
+			
+			// 2. Creem la capçalera afegint la columna "nom"
+			let contingutCSV = "id,nom,poblacio,ressenya";
+			
+			// Injectem de manera automàtica els partits registrats al sistema
+			Object.keys(diccionariPartits).forEach(idP => {
+				contingutCSV += `,${diccionariPartits[idP].nom}`;
+			});
+			contingutCSV += "\n";
+
+			// 3. Cas clau: Si el mapa encara no s'ha carregat del tot o falta l'SVG, fem un bucle numèric de reserva
+			if (caminsMunicipis.length === 0) {
+				for (let i = 1; i <= 538; i++) {
+					contingutCSV += `${i},Municipi ${i},0,Sense ressenya`;
+					Object.keys(diccionariPartits).forEach(() => { contingutCSV += ",0"; });
+					contingutCSV += "\n";
+				}
+			} else {
+				// Mapegem cada municipi real seguint el seu ordre d'ID vectorial
+				const llistaOrdenada = new Array(538);
+
+				caminsMunicipis.forEach(path => {
+					const mIdx = parseInt(path.getAttribute('data-m'), 10);
+					const nomReal = path.getAttribute('data-nom') || `Vila ${mIdx + 1}`;
+					
+					if (!isNaN(mIdx) && mIdx >= 0 && mIdx < 538) {
+						llistaOrdenada[mIdx] = nomReal;
+					}
+				});
+
+				// Generem el text del CSV ordenat de l'ID 1 al 538 amb la seua identitat
+				for (let i = 0; i < 538; i++) {
+					const idFila = i + 1;
+					const nomPoble = llistaOrdenada[i] || `Vila ${idFila}`;
+					
+					// Escrivim la informació de control amb el seu nom real
+					contingutCSV += `${idFila},"${nomPoble}",0,Sense informació històrica`;
+					
+					// Deixem les caselles dels partits a 0 per a poder editar-los fàcilment
+					Object.keys(diccionariPartits).forEach(() => {
+						contingutCSV += ",0";
+					});
+					contingutCSV += "\n";
+				}
+			}
+
+			// 4. Llançament i descàrrega automàtica del fitxer texturitzat
+			const blobPlantilla = new Blob([contingutCSV], { type: 'text/csv;charset=utf-8;' });
+			const enllaçDescarrega = document.createElement('a');
+			
+			enllaçDescarrega.download = `plantilla_identificada_regne.csv`;
+			enllaçDescarrega.href = window.URL.createObjectURL(blobPlantilla);
+			enllaçDescarrega.style.display = 'none';
+			
+			document.body.appendChild(enllaçDescarrega);
+			enllaçDescarrega.click();
+			document.body.removeChild(enllaçDescarrega);
+		};
+	}
+
+
+
 
     actualitzarInterficiePartits();
     renderSelectionColors();

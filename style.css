@@ -64,13 +64,15 @@ select:focus {
 
 /* Costat Esquerre: Finestrer mòbil de fons per al mapa */
 .view-side { 
-    width: 50%; 
+    flex: 1; 
     height: 100%; 
     position: relative; 
     background-color: #fafafa; 
-    border-right: 2px solid #cbd5e1; 
+    border-right: 1px solid #cbd5e1; 
     overflow: hidden; 
     cursor: grab; 
+	
+
 }
 
 .view-side:active { 
@@ -87,7 +89,9 @@ select:focus {
 
 /* Costat Dret: Taula de detalls fixa */
 .table-side { 
-    width: 50%; 
+    width: 50vw;             /* Ample inicial (meitat de la pantalla) */
+    min-width: 20vw;         /* Topall perquè la taula no es faça massa xicoteta */
+    max-width: 80vw; 
     height: 100%; 
     background-color: #ffffff; 
     padding: 24px; 
@@ -95,6 +99,14 @@ select:focus {
     display: flex; 
     flex-direction: column; 
     gap: 16px; 
+	
+	/* ACTIVEM EL RESIZE NATIU AL COSTAT ESQUERRE */
+    resize: horizontal;      /* Permet estirar horitzontalment */          /* Truc CSS: Força que la barra de control es col·loque a l'esquerra del panell */
+    border-left: 6px solid #cbd5e1; /* La teua barra separadora gris */
+}
+
+.table-side * {
+    direction: ltr;          /* Evita que els textos i botons interns de la taula es giren al revés */
 }
 
 /* ==========================================================================
