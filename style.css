@@ -69,7 +69,7 @@ select:focus {
     position: relative; 
     background-color: #fafafa; 
     border-right: 2px solid #cbd5e1; 
-    overflow: auto; 
+    overflow: hidden; 
     cursor: grab; 
 }
 
@@ -80,13 +80,9 @@ select:focus {
 /*  OPTIMITZAT: Eliminem l'àrea gegant estàtica de 3000px perquè el motor actua per viewBox */
 /* Troba aquesta secció al teu style.css i canvia el percentatge per píxels reals 👇 */
 .scroll-area {
-    width: 100%;
+    width: 100%; /* Tornem als valors fixos per seguretat de scroll de maquinari */
     height: 100%;
     position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #ffffff; /* Aquesta és la teva zona blanca on flota el mapa */
 }
 
 /* Costat Dret: Taula de detalls fixa */
@@ -107,25 +103,23 @@ select:focus {
 /*  OPTIMITZAT: El llenç ara ocupa el 100% lliure del finestrer esquerre per a fer el zoom fluid */
 .map-canvas { 
     position: absolute; 
-    width: 1296px;   
-    height: 1760px; 
-    top: 0px;    
-    left: 0px; 
-    display: block; 
+    width: 100%;   
+    height: 100%; 
+    top: 0;    
+    left: 0; 
+    display: flex; 
     align-items: center; 
     justify-content: center; 
-	touch-action: none; 
-    user-select: none;
 }
 
 /* L'objecte SVG real adaptat per a expandir-se dinàmicament pel finestrer */
 #election-svg { 
     width: 100%; 
     height: 100%; 
-	display: block;
     background-color: transparent;
     max-width: none !important;
     max-height: none !important;
+	overflow: visible !important;
 }
 
 /* Els camins vectorials reals de cadascun dels municipis */
@@ -248,3 +242,34 @@ select:focus {
 /* Barres de progrés estadístiques per al panell dret */
 .progress-bar-bg { width: 100%; background-color: #f1f5f9; border-radius: 4px; height: 16px; overflow: hidden; margin-bottom: 8px; display: flex; }
 .progress-fill { height: 100%; transition: width 0.3s ease; }
+
+
+/* ==========================================================================
+   INTERFÍCIE ADAPTATIVA PER A PANTALLES DE MÒBIL (VERTICAL)
+   ========================================================================== */
+@media (max-width: 768px) {
+    .main-layout {
+        flex-direction: column; /* Apila el mapa sobre la taula */
+    }
+
+    .view-side {
+        width: 100%;
+        height: 45vh; /* El mapa ocupa gairebé la meitat superior */
+        border-right: none;
+        border-bottom: 2px solid #cbd5e1;
+    }
+
+    .table-side {
+        width: 100%;
+        height: 55vh; /* El panell de vots es queda a sota per fer scroll còmodament */
+        padding: 16px;
+    }
+
+    .hdr {
+        padding: 8px 12px;
+    }
+    
+    .hdr h2 {
+        font-size: 14px; /* Rètols de capçalera més compactes per a pantalles estretes */
+    }
+}

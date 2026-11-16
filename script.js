@@ -8,27 +8,25 @@ const baseDadesColorsElectorals = {};
 const baseDadesDetallsMunicipis = {};
 let idMunicipiEnEdicio = null;
 
-let zoomScale = 1; 
+let zoomScale = 1.5; 
 let activeTier = 0;
-let colorPartitSeleccionat = 'partit-roig'; 
-let mostrarEtiquetesActiu = false;
+let colorPartitSeleccionat = null; //partit sel·lecionat
+let mostrarEtiquetesActiu = false; //etiquetes amagaes
 
 let modeExploracioActiu = false; // Memòria del interruptor de navegació
-
-const startEvent = window.PointerEvent ? 'pointerdown' : 'mousedown';
-const moveEvent  = window.PointerEvent ? 'pointermove' : 'mousemove';
-const endEvent   = window.PointerEvent ? 'pointerup'   : 'mouseup';
 
 
  
 
-const v = document.getElementById('v');
-const canvasMain = document.getElementById('canvas-main');
-const tId = document.getElementById('t-id');
-const tDetall = document.getElementById('t-detall');
+const v = document.getElementById('v'); //view-side meitat esquerre
+const canvasMain = document.getElementById('canvas-main'); //mapa
+const tId = document.getElementById('t-id'); //text de Tier0?
+const tDetall = document.getElementById('t-detall'); // municipi info 
 
-v.scrollLeft = 0;
-v.scrollTop = 0;
+v.scrollLeft = 1050;
+v.scrollTop = 950;
+
+
 
 function syncZoom() { 
     document.getElementById('election-svg').style.transform = `scale(${zoomScale})`; 
@@ -180,19 +178,16 @@ const diccionariNomsSubcomarques = {
 };
 
 const diccionariPartits = {
-    'partit-blau': { nom: 'Blau', color: '#3b82f6' },
-    'partit-roig': { nom: 'Roig', color: '#de1a00' },
-    'partit-verd': { nom: 'Verd', color: '#10b981' },
-    'partit-groc': { nom: 'Groc', color: '#eab308' }
+    'partit-blau': { nom: 'PP', color: '#3b82f6' },
+    'partit-roig': { nom: 'PSOE', color: '#de1a00' },
+    'partit-verd': { nom: 'VoX', color: '#10b981' },
+    'partit-groc': { nom: 'BLOC', color: '#eab308' }
 };
 
 /**
- * 🎨 MOTOR DE CHROMATISME REGIONAL (A TOTA HORA):
+ *  MOTOR DE CHROMATISME REGIONAL (A TOTA HORA):
  * Agrupa sectors per la seua comarca mare usant un ton base compartit,
  * però desvia els graus HSL segons el sector local perquè no siguen iguals.
- */
-/**
- * 🎨 MOTOR DE CHROMATISME REGIONAL D'ALT CONTORN (SENSE XOCS CHROMÀTICS)
  * Assegura un fort contrast entre comarques veïnes fent salts grans a la roda HSL,
  * però manté els sub-sectors d'una mateixa comarca units en la mateixa gamma.
  */
@@ -225,14 +220,14 @@ function obtenirColorCartograficSubcomarca(idComarca, idSector) {
  * ==========================================================================
  */
 function up(elementClicat = null) {
-    tId.innerText = `Tier ${activeTier}`;
+    //tId.innerText = `Tier ${activeTier}`;
     const g = dbSel[activeTier];
     const targetaEditor = document.getElementById('targeta-editor-municipi');
     const contenidorInputsVots = document.getElementById('contenidor-inputs-vots-locals');
     
     if (g !== null) {
         if (activeTier !== 4) {
-            tDetall.innerHTML = activeTier === 0 ? `<strong>Jurisdicció:</strong> Tot el territori foral.` : `<strong>Demarcació Històrica:</strong> Nivell ${activeTier}, ID: ${g}.`;
+            tDetall.innerHTML = activeTier === 0 ? `<strong>Jurisdicció:</strong> Tot el territori valencià.` : `<strong>Demarcació Històrica:</strong> Nivell ${activeTier}, ID: ${g}.`;
             if (targetaEditor) targetaEditor.style.display = 'none';
         } else if (activeTier === 1) {
             // 🚀 ACTUALITZAT: Nom històric real de la gran Governació General
@@ -272,9 +267,9 @@ function up(elementClicat = null) {
 
             const habFixes = dadesGuardades.poblacio ? `${parseInt(dadesGuardades.poblacio, 10).toLocaleString()} hab.` : 'Sense especificar';
             tDetall.innerHTML = `
-                <strong>Vila / Universitat Reial:</strong> ${nomFinal}<br>
+                <strong>Municipi:</strong> ${nomFinal}<br>
                 <strong>Codi Local:</strong> T4_M${g + 1}<br>
-                <strong>Població Històrica (Ref):</strong> ${habFixes}<br>
+                <strong>Població (Ref):</strong> ${habFixes}<br>
                 <strong>Vots totals emesos:</strong> ${votsTeclejatsTotals.toLocaleString()} paperetes<br>
                 <strong>Escrutini Local:</strong> ${resumVotsText || "Sense vots registrats."}<br>
                 <strong>Ressenya:</strong> <em>${dadesGuardades.text || 'Sense informació històrica afegida.'}</em>
@@ -324,7 +319,7 @@ window.canviarEstatEtiquetes = function() {
     mostrarEtiquetesActiu = !mostrarEtiquetesActiu;
 	const btn = document.getElementById('btn-toggle-etiquetes');
     if (btn) {
-        btn.innerText = mostrarEtiquetesActiu ? "ON (Visibles)" : "OFF (Ocults)";
+        btn.innerText = mostrarEtiquetesActiu ? "Visibles" : "Ocults";
         btn.style.backgroundColor = mostrarEtiquetesActiu ? "#10b981" : "#475569";
     }
     refrescarEtiquetesSobreMapa();
@@ -489,238 +484,201 @@ function refrescarEtiquetesSobreMapa() {
     });
 }
 
- 
 
 
 /**
  * ==========================================================================
- * 5. MOTORS DE SCROLL DIRECTE I ZOOM VECTORIAL MATRICIAL DE CONTORN (CORREGIT)
+ * 5. MOTORS UNIFICATS: CONTROL D'ARROSSEGAMENT I ZOOM (RATOLÍ + MÒBIL A L'HORA)
  * ==========================================================================
  */
 let isMouseDown = false;
-let startX, startY, scrollLeft, scrollTop;
+let startX, startY;
+let viewBoxStart = { x: 0, y: 0 };
 let isStaticClick = true;
 
-// Memòria de punters unificada per a pantalles tàctils i ratolí
-let puntersActiusAlMapa = new Map();
-let distanciaInicialDits = 0;
+// Variables exclusives per al gest de pinça tàctil
+let distànciaInicialPinça = null;
+let viewBoxInicialPinça = { w: 0, h: 0, x: 0, y: 0 };
 
-const viewBoxOriginal = { x: 0, y: 0, w: 1296, h: 1760 }; 
-let currentViewBox = { ...viewBoxOriginal };
+/* === A) INICI DE LA INTERACCIÓ (RATOLÍ I TÀCTIL) === */
 
-// Trobem l'element .map-canvas que envolta l'SVG per poder canviar-li la mida real
-const contenidorFisicCanvas = document.querySelector('.map-canvas');
-
-// --- 5.1 GESTIÓ DEL DESPLAÇAMENT (DRAG / PAN ADAPTAT AMB SCROLL DE FINESTRA) ---
-v.addEventListener(startEvent, (e) => {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    
-    puntersActiusAlMapa.set(e.pointerId, e);
-    
-    if (puntersActiusAlMapa.size > 1) {
-        isMouseDown = false;
-        return;
-    }
-
+// Clic de ratolí ordinari
+v.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return; // Només clic esquerre
     isMouseDown = true;
     isStaticClick = true;
-    
     startX = e.clientX;
     startY = e.clientY;
-    scrollLeft = v.scrollLeft;
-    scrollTop = v.scrollTop;
-    
-    if (v.setPointerCapture) {
-        v.setPointerCapture(e.pointerId);
-    }
+    viewBoxStart.x = currentViewBox.x;
+    viewBoxStart.y = currentViewBox.y;
 });
 
-window.addEventListener(moveEvent, (e) => {
-    if (puntersActiusAlMapa.has(e.pointerId)) {
-        puntersActiusAlMapa.set(e.pointerId, e);
+// Toc a la pantalla tàctil
+v.addEventListener('touchstart', (e) => {
+    isStaticClick = true;
+
+    if (e.touches.length === 1) {
+        // Un sol dit: Equival a mousedown
+        isMouseDown = true;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        viewBoxStart.x = currentViewBox.x;
+        viewBoxStart.y = currentViewBox.y;
+    } else if (e.touches.length === 2) {
+        // Dos dits: Iniciem gest de pinça per a zoom involuntari
+        isMouseDown = false; 
+        distànciaInicialPinça = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+        );
+        viewBoxInicialPinça = { ...currentViewBox };
     }
+}, { passive: true });
 
-    if (!isMouseDown || puntersActiusAlMapa.size > 1) return;
 
-    const x = e.clientX;
-    const y = e.clientY;
-    const walkX = (x - startX) * 1.2; 
-    const walkY = (y - startY) * 1.2;
-    
-    if (Math.abs(walkX) > 3 || Math.abs(walkY) > 3) {
+/* === B) MOVIMENT EN DIRECTE (RATOLÍ I TÀCTIL) === */
+
+// Moviment del ratolí
+window.addEventListener('mousemove', (e) => {
+    if (!isMouseDown) return;
+    processarArrossegament(e.clientX, e.clientY);
+});
+
+// Moviment dels dits per la pantalla
+window.addEventListener('touchmove', (e) => {
+    const svgEl = document.getElementById('election-svg');
+    if (!svgEl) return;
+
+    if (e.touches.length === 1 && isMouseDown) {
+        // Moure el mapa amb un sol dit
+        processarArrossegament(e.touches[0].clientX, e.touches[0].clientY);
+    } else if (e.touches.length === 2 && distànciaInicialPinça) {
+        // Fer zoom amb dos dits (pinça)
+        e.preventDefault(); // Evita el zoom natiu del navegador mòbil
+        isStaticClick = false;
+
+        const distànciaActual = Math.hypot(
+            e.touches[0].clientX - e.touches[1].clientX,
+            e.touches[0].clientY - e.touches[1].clientY
+        );
+
+        if (distànciaActual > 0) {
+            let factor = distànciaInicialPinça / distànciaActual;
+            
+            // Centre geomètric exacte entre els dos dits
+            const centreX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+            const centreY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+
+            const matriuPantalla = svgEl.getScreenCTM();
+            if (!matriuPantalla) return;
+
+            const puntSVG = svgEl.createSVGPoint();
+            puntSVG.x = centreX;
+            puntSVG.y = centreY;
+            const puntRealSVG = puntSVG.matrixTransform(matriuPantalla.inverse());
+
+            let nouW = viewBoxInicialPinça.w * factor;
+            let nouH = viewBoxInicialPinça.h * factor;
+            const nivellZoomCalculat = 1296 / nouW;
+
+            if (nivellZoomCalculat >= 0.1 && nivellZoomCalculat <= 40) {
+                currentViewBox.w = nouW;
+                currentViewBox.h = nouH;
+                currentViewBox.x = puntRealSVG.x - (puntRealSVG.x - viewBoxInicialPinça.x) * factor;
+                currentViewBox.y = puntRealSVG.y - (puntRealSVG.y - viewBoxInicialPinça.y) * factor;
+
+                svgEl.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.w} ${currentViewBox.h}`);
+                refrescarEtiquetesSobreMapa();
+            }
+        }
+    }
+}, { passive: false });
+
+// Funció centralitzadora d'arrossegament (calcula la matriu per a ratolí o dit)
+function processarArrossegament(pantallaX, pantallaY) {
+    const svgEl = document.getElementById('election-svg');
+    if (!svgEl) return;
+
+    const deltaX = pantallaX - startX;
+    const deltaY = pantallaY - startY;
+
+    if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
         isStaticClick = false; 
     }
-    v.scrollLeft = scrollLeft - walkX;
-    v.scrollTop = scrollTop - walkY;
-    refrescarEtiquetesSobreMapa();
-});
 
-const finalitzarInteraccioPunter = (e) => {
-    puntersActiusAlMapa.delete(e.pointerId);
-    if (puntersActiusAlMapa.size === 0) {
-        isMouseDown = false;
-    }
-};
-
-window.addEventListener(endEvent, finalitzarInteraccioPunter);
-window.addEventListener('pointercancel', finalitzarInteraccioPunter);
-
-
-// --- 5.2 FUNCIÓ INTERNA CENTRAL DE ZOOM PROPORCIONAL ANTI-DESCENTRAT ---
-function executarZoomViewBox(factor, focusClientX, focusClientY) {
-    const svgEl = document.querySelector('svg');
-    if (!svgEl || !contenidorFisicCanvas) return;
-    
     const rect = svgEl.getBoundingClientRect();
-    const rectV = v.getBoundingClientRect();
-    
-    // 1. Guardem la posició del focus de la pantalla en píxels de la finestra finestra
-    const focusFinestraX = focusClientX - rectV.left;
-    const focusFinestraY = focusClientY - rectV.top;
-    
-    // 2. Calculem els punts absoluts on es troba el cursor dins del mapa desplaçat
-    const mapaPreviX = focusFinestraX + v.scrollLeft;
-    const mapaPreviY = focusFinestraY + v.scrollTop;
+    const factorEscalaX = currentViewBox.w / rect.width;
+    const factorEscalaY = currentViewBox.h / rect.height;
 
-    // 3. Trobem el punt de focus dins de la llent virtual del viewBox de l'SVG
-    const mouseX = (focusClientX - rect.left) * (currentViewBox.w / rect.width) + currentViewBox.x;
-    const mouseY = (focusClientY - rect.top) * (currentViewBox.h / rect.height) + currentViewBox.y;
+    currentViewBox.x = viewBoxStart.x - (deltaX * factorEscalaX);
+    currentViewBox.y = viewBoxStart.y - (deltaY * factorEscalaY);
 
-    let nouW = currentViewBox.w * factor;
-    let nouH = currentViewBox.h * factor;
-    const nivellZoomCalculat = viewBoxOriginal.w / nouW;
-
-    // 4. Límits de zoom (0.4x a 40x)
-    if (nivellZoomCalculat >= 0.4 && nivellZoomCalculat <= 40) {
-        
-        // 5. Ajustem la posició de la càmera virtual (viewBox)
-        currentViewBox.x = mouseX - (mouseX - currentViewBox.x) * factor;
-        currentViewBox.y = mouseY - (mouseY - currentViewBox.y) * factor;
-        currentViewBox.w = nouW;
-        currentViewBox.h = nouH;
-        
-        svgEl.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.w} ${currentViewBox.h}`);
-        
-        // 🚀 LA RESOLUCIÓ DEFINITIVA: Canviem de tamany la caixa HTML que conté el mapa
-        const ampleFisic = viewBoxOriginal.w * nivellZoomCalculat;
-        const altFisic = viewBoxOriginal.h * nivellZoomCalculat;
-        
-        contenidorFisicCanvas.style.width = `${ampleFisic}px`;
-        contenidorFisicCanvas.style.height = `${altFisic}px`;
-        
-        // 🚀 CORRECCIÓ DE COIXÍ: Recollim o ampliem les barres de scroll acompanyant el moviment
-        // d'aquesta manera s'elimina el salt en diagonal i l'efecte "paret blanca" en minimitzar.
-        v.scrollLeft = (mapaPreviX * (1 / factor)) - focusFinestraX;
-        v.scrollTop = (mapaPreviY * (1 / factor)) - focusFinestraY;
-        
-        refrescarEtiquetesSobreMapa();
-    }
+    svgEl.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.w} ${currentViewBox.h}`);
+    refrescarEtiquetesSobreMapa();
 }
 
 
-// --- 5.3 ZOOM PER A ESCRIPTORI (RODA DEL RATOLÍ) ---
-v.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    let factor = (e.deltaY < 0) ? 0.9 : 1.1;
-    executarZoomViewBox(factor, e.clientX, e.clientY);
-}, { passive: false });
+/* === C) FINALITZACIÓ DE LA INTERACCIÓ (RATOLÍ I TÀCTIL) === */
 
-
-// --- 5.4 ZOOM PER A MÒBIL (PESSIGAR AMB DOS DITS) ---
-v.addEventListener('pointerdown', (e) => {
-    if (puntersActiusAlMapa.size === 2) {
-        const llistaDits = Array.from(puntersActiusAlMapa.values());
-        const dx = llistaDits[0].clientX - llistaDits[1].clientX;
-        const dy = llistaDits[0].clientY - llistaDits[1].clientY;
-        distanciaInicialDits = Math.sqrt(dx * dx + dy * dy);
-    }
+// En amollar el clic del ratolí
+window.addEventListener('mouseup', () => { 
+    isMouseDown = false; 
 });
 
-v.addEventListener('pointermove', (e) => {
-    if (puntersActiusAlMapa.size !== 2) return;
-
-    const llistaDits = Array.from(puntersActiusAlMapa.values());
-    const dx = llistaDits[0].clientX - llistaDits[1].clientX;
-    const dy = llistaDits[0].clientY - llistaDits[1].clientY;
-    const distanciaActualDits = Math.sqrt(dx * dx + dy * dy);
-
-    if (distanciaInicialDits > 0) {
-        const centreMobilX = (llistaDits[0].clientX + llistaDits[1].clientX) / 2;
-        const centreMobilY = (llistaDits[0].clientY + llistaDits[1].clientY) / 2;
-
-        const ratioMobil = distanciaActualDits / distanciaInicialDits;
-        
-        // Invertim la ràtio per adequar-la al moviment de reducció de viewBox
-        let factor = 1 + (1 / ratioMobil - 1) * 0.25; 
-
-        executarZoomViewBox(factor, centreMobilX, centreMobilY);
-    }
-    
-    distanciaInicialDits = distanciaActualDits;
-});
-
-window.addEventListener(endEvent, (e) => {
-    if (puntersActiusAlMapa.size < 2) {
-        distanciaInicialDits = 0;
+// En aixecar els dits de la pantalla
+window.addEventListener('touchend', (e) => {
+    if (e.touches.length === 0) {
+        isMouseDown = false;
+        distànciaInicialPinça = null;
+    } else if (e.touches.length === 1) {
+        // Si es queda un dit recolzat, es reajusta com a inici d'arrossegament d'un sol dit
+        isMouseDown = true;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        viewBoxStart.x = currentViewBox.x;
+        viewBoxStart.y = currentViewBox.y;
+        distànciaInicialPinça = null;
     }
 });
 
 
-
-
-v.addEventListener('mousedown', (e) => {
-    if (e.button !== 0) return;
-    isMouseDown = true;
-    isStaticClick = true;
-    startX = e.pageX - v.offsetLeft;
-    startY = e.pageY - v.offsetTop;
-    scrollLeft = v.scrollLeft;
-    scrollTop = v.scrollTop;
-});
-
-/**window.addEventListener('mousemove', (e) => {
-    if (!isMouseDown) return;
-    const x = e.pageX - v.offsetLeft;
-    const y = e.pageY - v.offsetTop;
-    const walkX = (x - startX) * 1.5; 
-    const walkY = (y - startY) * 1.5;
-    
-    if (Math.abs(walkX) > 3 || Math.abs(walkY) > 3) {
-        isStaticClick = false; 
-    }
-    v.scrollLeft = scrollLeft - walkX;
-    v.scrollTop = scrollTop - walkY;
-    refrescarEtiquetesSobreMapa();
-});*/
-
-window.addEventListener('mouseup', () => { isMouseDown = false; });
-
-/*const viewBoxOriginal = { x: 0, y: 0, w: 1296, h: 1760 }; 
-let currentViewBox = { ...viewBoxOriginal };
-
-v.addEventListener('wheel', (e) => {
-    e.preventDefault();
-    const svgEl = document.querySelector('svg');
+/* === D) CONTROL DE ZOOM PER RODA (SENSE CANVIS, MANTÉ EL RATOLÍ) === */
+document.addEventListener('DOMContentLoaded', () => {
+    const svgEl = document.getElementById('election-svg');
     if (!svgEl) return;
-    
-    const rect = svgEl.getBoundingClientRect();
-    const mouseX = (e.clientX - rect.left) * (currentViewBox.w / rect.width) + currentViewBox.x;
-    const mouseY = (e.clientY - rect.top) * (currentViewBox.h / rect.height) + currentViewBox.y;
 
-    let factor = (e.deltaY < 0) ? 0.9 : 1.1;
-    let nouW = currentViewBox.w * factor;
-    let nouH = currentViewBox.h * factor;
-    const nivellZoomCalculat = viewBoxOriginal.w / nouW;
+    svgEl.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        
+        const matriuPantalla = svgEl.getScreenCTM();
+        if (!matriuPantalla) return;
 
-    if (nivellZoomCalculat >= 0.4 && nivellZoomCalculat <= 40) {
-        currentViewBox.x = mouseX - (mouseX - currentViewBox.x) * factor;
-        currentViewBox.y = mouseY - (mouseY - currentViewBox.y) * factor;
-        currentViewBox.w = nouW;
-        currentViewBox.h = nouH;
-        svgEl.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.w} ${currentViewBox.h}`);
-        refrescarEtiquetesSobreMapa();
-    }
-}, { passive: false });*/
+        const puntSVG = svgEl.createSVGPoint();
+        puntSVG.x = e.clientX;
+        puntSVG.y = e.clientY;
+        
+        const puntRealSVG = puntSVG.matrixTransform(matriuPantalla.inverse());
+        const mouseX = puntRealSVG.x;
+        const mouseY = puntRealSVG.y;
+
+        let factor = (e.deltaY < 0) ? 0.9 : 1.1;
+        let nouW = currentViewBox.w * factor;
+        let nouH = currentViewBox.h * factor;
+        const nivellZoomCalculat = 1296 / nouW;
+
+        if (nivellZoomCalculat >= 0.1 && nivellZoomCalculat <= 40) {
+            currentViewBox.x = mouseX - (mouseX - currentViewBox.x) * factor;
+            currentViewBox.y = mouseY - (mouseY - currentViewBox.y) * factor;
+            currentViewBox.w = nouW;
+            currentViewBox.h = nouH;
+            
+            svgEl.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.w} ${currentViewBox.h}`);
+            refrescarEtiquetesSobreMapa();
+        }
+    }, { passive: false });
+});
+
+
 
 /**
  * ==========================================================================
@@ -792,11 +750,6 @@ function obtenirColorTextSegonsFons(hexcolor) {
     return (((r*299)+(g*587)+(b*114))/1000 >= 128) ? '#0f172a' : '#ffffff';
 }
 
-/**
- * ==========================================================================
- * calcularEscrutiniGlobal - MOTOR TOPOLÒGIC MULTI-CIRCUMSCRIPCIÓ DESDOBLAT
- * ==========================================================================
- */
 /**
  * ==========================================================================
  * calcularEscrutiniGlobal - MOTOR DE PARLAMENTS PROPRIS AMB ESCONS EDITABLES
@@ -1039,12 +992,16 @@ window.addEventListener('DOMContentLoaded', () => {
     
     const svgEl = document.getElementById('election-svg');
     if (svgEl) {
+        currentViewBox = { x: 0, y: 0, w: 1296, h: 1760 }; 
         svgEl.setAttribute('viewBox', `${currentViewBox.x} ${currentViewBox.y} ${currentViewBox.w} ${currentViewBox.h}`);
-        
+		
         svgEl.querySelectorAll('.frag').forEach(el => {
             el.addEventListener('click', (e) => {
-                if (isMouseDown) return;
-                if (isStaticClick) {
+                if (!isStaticClick) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return;
+                }
                     e.stopPropagation();
                     
                     const valM = parseInt(el.getAttribute('data-m'), 10);
@@ -1075,37 +1032,62 @@ window.addEventListener('DOMContentLoaded', () => {
                                 baseDadesColorsElectorals[valM] = colorPartitSeleccionat; 
                             }
                         }
-                        up(el); // 🌌 SEMPRE OPERATIU: Obre la targeta de dades del lloc a tota hora!
+                        up(el); //  SEMPRE OPERATIU: Obre la targeta de dades del lloc a tota hora!
                     }
                     
                     // Actualitzem les il·luminacions i rètols
                     renderSelectionColors();
-                }
+                
             });
         });
 
 
-        const puntSVG = svgEl.createSVGPoint();
-        let visorCoordenades = document.getElementById('coordenades-visor');
-        if (!visorCoordenades) {
-            visorCoordenades = document.createElement('div');
-            visorCoordenades.id = 'coordenades-visor';
-            Object.assign(visorCoordenades.style, {
-                position: 'fixed', bottom: '20px', left: '20px', backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                color: '#f8fafc', padding: '8px 16px', borderRadius: '6px', fontFamily: 'monospace',
-                fontSize: '13px', zIndex: '999999', pointerEvents: 'none', border: '1px solid #334155', boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
-            });
-            document.body.appendChild(visorCoordenades);
-        }
-        svgEl.addEventListener('mousemove', (e) => {
-            const matriuPantalla = svgEl.getScreenCTM();
-            if (matriuPantalla) {
-                puntSVG.x = e.clientX; puntSVG.y = e.clientY;
-                const puntRealSVG = puntSVG.matrixTransform(matriuPantalla.inverse());
-                visorCoordenades.innerText = `X: ${puntRealSVG.x.toFixed(1)} | Y: ${puntRealSVG.y.toFixed(1)}`;
-            }
-        });
-        svgEl.addEventListener('mouseleave', () => { visorCoordenades.innerText = "X: ---.- | Y: ---.-"; });
+            // ==========================================
+			// VISOR DE COORDENADES VECTORIAL EN CONTEXT
+			// ==========================================
+			const puntSVG = svgEl.createSVGPoint();
+			let visorCoordenades = document.getElementById('coordenades-visor');
+    
+			// Si no existeix el div a l'HTML, el creem dinàmicament amb estils elegants
+			if (!visorCoordenades) {
+				visorCoordenades = document.createElement('div');
+				visorCoordenades.id = 'coordenades-visor';
+				Object.assign(visorCoordenades.style, {
+					position: 'fixed', 
+					bottom: '20px', 
+					left: '20px', 
+					backgroundColor: 'rgba(15, 23, 42, 0.95)',
+					color: '#f8fafc', 
+					padding: '8px 16px', 
+					borderRadius: '6px', 
+					fontFamily: 'monospace',
+					fontSize: '13px', 
+					zIndex: '999999', 
+					pointerEvents: 'none', 
+					border: '1px solid #334155', 
+					boxShadow: '0 4px 6px rgba(0,0,0,0.3)'
+				});
+				document.body.appendChild(visorCoordenades);
+			}
+
+			// Actualització mil·limètrica basada en la matriu de transformació del viewBox actual
+			svgEl.addEventListener('mousemove', (e) => {
+				const matriuPantalla = svgEl.getScreenCTM();
+				if (matriuPantalla) {
+					puntSVG.x = e.clientX; 
+					puntSVG.y = e.clientY;
+            
+					// Invertim la matriu de la pantalla per obtenir la coordenada real interna de l'atles
+					const puntRealSVG = puntSVG.matrixTransform(matriuPantalla.inverse());
+					visorCoordenades.innerText = `X: ${puntRealSVG.x.toFixed(1)} | Y: ${puntRealSVG.y.toFixed(1)}`;
+				}
+			});
+
+			// Reset quan el ratolí surt del mapa
+			svgEl.addEventListener('mouseleave', () => { 
+				visorCoordenades.innerText = "X: ---.- | Y: ---.-"; 
+			});
+
     }
 
     const btnAfegir = document.getElementById('btn-afegir-partit');

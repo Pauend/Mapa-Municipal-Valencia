@@ -12,23 +12,22 @@
     <div>
         <label style="font-weight:bold; font-size:14px; margin-right:5px;">Nivell Cartogràfic:</label>
         <select id="sel" onchange="chg(this.value)">
-            <option value="0">Tier 0: País Valencià</option>
-            <option value="1">Tier 1: Governacions Generals (5)</option>
-            <option value="2">Tier 2: Comarques (44)</option>
-            <option value="3">Tier 3: Sotscomarques (86)</option>
-            <option value="4">Tier 4: Municipis (537-538)</option>
+            <option value="0"> País Valencià</option>
+            <option value="1"> Governacions Generals (5)</option>
+            <option value="2"> Comarques (44)</option>
+            <option value="3"> Sotscomarques (86)</option>
+            <option value="4"> Municipis (537-538)</option>
         </select>
     </div>
 </div>
 
 <div class="main-layout">
 
-    <!-- MEITAT ESQUERRA: VISOR INTERACTIU DEL MAPA -->
-    <div class="view-side" id="v">
+    <!-- MEITAT ESQUERRA: MAPA -->
+    <div class="view-side" id="v"> 
 		
         <div class="scroll-area">	   
             <!-- El llenç mòbil on s'integra el teu mapa SVG d'alta resolució -->
-            <!-- Cerca aquesta línia al teu HTML i canvia-la per aquesta exacta 👇 -->
 			<div class="map-canvas" id="canvas-main" style="transform: scale(2.8); transform-origin: top left; top: 300px !important; left: 600px !important;">
                 
                 <svg id="election-svg" viewBox="0 0 1296 1760" xmlns="http://w3.org" xmlns:xlink="http://w3.org">
@@ -990,23 +989,23 @@
     </div>
 
 
-    <!-- MEITAT DRETA: PANNELL LATERIAL DE DETALLS JURISDICCIONALS NET -->
+    <!-- MEITAT DRETA: PANNELL LATERAL -->
     <div class="table-side">
 	
-		<!-- 🏷️ GESTOR D'ETIQUETES DE TEXT ON/OFF -->
+		<!-- ETIQUETES -->
 		<div class="card">
 			<h3>Etiquetes Territorials</h3>
 			<div style="display: flex; align-items: center; justify-content: space-between;">
 				<span style="font-size: 14px; color: #334155;">Mostrar els noms sobre el mapa:</span>
 				<button id="btn-toggle-etiquetes" onclick="canviarEstatEtiquetes()" style="padding: 6px 16px; background-color: #475569; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px;">
-					OFF (Ocults)
+					Ocults
 				</button>
 			</div>
 		</div>
 
-		<!-- 🔍 BARRA DE CERCA INTERACTIVA (Afegeix-la al panell dret) -->
+		<!--  BARRA DE CERCA  -->
 		<div class="card">
-			<h3>Cercador Municipal</h3>
+			<h3>Cercador </h3>
 			<div style="display: flex; gap: 8px;">
 				<input type="text" id="map-searcher" placeholder="Escriu el nom de la vila..." style="flex: 1; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px;">
 				<button id="search-btn" style="padding: 8px 16px; background-color: #3b82f6; color: white; border: none; border-radius: 6px; font-weight: 500; cursor: pointer;">Centrar</button>
@@ -1014,25 +1013,28 @@
 			<div id="search-error" style="color: #ef4444; font-size: 12px; margin-top: 6px; display: none;">No s'ha trobat cap municipi amb aquest nom.</div>
 		</div>
 		
-		        <!-- 🚀 INTERRUPTOR DEL MODE EXPLORACIÓ -->
+		        <!--  MODE EXPLORACIÓ -->
         <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid #cbd5e1; padding-top: 8px; margin-top: 4px;">
             <span style="font-size: 13px; color: #475569; font-weight: 500;">Navegar Lliurement:</span>
             <button id="btn-toggle-exploracio" style="padding: 6px 14px; background-color: #475569; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 12px; transition: all 0.2s ease;">
-                 OFF (Mode Edició)
+                 Mode Edició
             </button>
         </div>
 
 
-        <div class="card">
-            <h3>Nivell de subdivisió:</h3>
-            <div class="row"><span>Nivell actiu:</span><strong id="t-id">Tier 0</strong></div>
-        </div>
+        <!--<div class="row"><span>Nivell actiu:</span><strong id="t-id">Tier 0</strong></div>-->
+        
+		
         <div class="card">
             <h3>Informació del Municipi</h3>
-            <div class="detall-box" id="t-detall">Fes clic sobre qualsevol municipi o path del mapa per veure més dades.</div>
+            <div class="detall-box" id="t-detall">Fes clic sobre qualsevol municipi per vore més dades.</div>
         </div>
 		
-		<!-- 📝 FITXA D'EDITOR DE DADES I VOTS PER MUNICIPI -->
+		
+		
+		<!-- 
+
+		FITXA D'EDITOR DE DADES I VOTS PER MUNICIPI -->
 		<div class="card" id="targeta-editor-municipi" style="display: none; border-color: #3b82f6;">
 			<h3 style="color: #3b82f6;">Dades editables </h3>
 			<div style="font-size: 13px; color: #1e3a8a; font-weight: bold; margin-bottom: 12px;" id="editor-nom-títol">Selecciona una vila...</div>
@@ -1046,19 +1048,19 @@
 			<!-- Camp de notes generals -->
 			<div style="margin-bottom: 12px;">
 				<label style="display: block; font-size: 11px; color: #475569; margin-bottom: 2px;">Notes o ressenya històrica:</label>
-				<input type="text" id="input-info-text" placeholder="Ex: Vila reial d'enclau estratègic..." style="width: 100%; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px;">
+				<input type="text" id="input-info-text" placeholder="Ex: Capital històrica o de sotscomarca disputada..." style="width: 100%; padding: 4px 8px; border: 1px solid #cbd5e1; border-radius: 4px; font-size: 12px;">
 			</div>
 
-			<!-- 🗳️ TAULA EN VIU PER A INTRODUIR VOTS INDIVIDUALS PER PARTIT -->
+			<!-- ️ TAULA EN VIU PER A INTRODUIR VOTS INDIVIDUALS PER PARTIT -->
 			<div style="margin-bottom: 12px; background: #f8fafc; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0;">
-				<label style="display: block; font-size: 11px; color: #1e293b; font-weight: 600; margin-bottom: 6px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px;">Repartiment de Vots Locals:</label>
+				<label style="display: block; font-size: 11px; color: #1e293b; font-weight: 600; margin-bottom: 6px; border-bottom: 1px solid #cbd5e1; padding-bottom: 3px;">Vots:</label>
 				<div id="contenidor-inputs-vots-locals" style="display: flex; flex-direction: column; gap: 6px;">
 					<!-- Els inputs dinàmics es carreguen ací -->
 				</div>
 			</div>
     
 			<button id="btn-desar-municipi" style="width: 100%; padding: 8px; background-color: #3b82f6; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px;">
-				 Desar Dades Municipal
+				 Desar Dades Municipi
 			</button>
 		</div>
 
@@ -1068,7 +1070,7 @@
 		<!-- 🗳️ CONTROLADORS ELECTORALS I PANNELL D'ESCRUTINI -->
 		<!-- 🗳️ PANNELL DE CONTROL ELECTORAL DINÀMIC -->
 		<div class="card">
-			<h3>Gestió de Partits Polítics</h3>
+			<h3>Pintar Partits</h3>
 			
 			<div style="margin-bottom: 12px;">
 				<button onclick="canviarPartitActiu('neutre')" style="width: 100%; padding: 8px; background-color: #475569; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px;">
@@ -1108,11 +1110,11 @@
 			</div>
 		</div>
 		
-		<!-- 📊 TARGETA D'ESCONS ACTUALITZADA AMB SELECTOR DE CIRCUMSCRIPCIÓ -->
+		<!--  TARGETA D'ESCONS ACTUALITZADA AMB SELECTOR DE CIRCUMSCRIPCIÓ -->
 		<div class="card">
 			<h3>Repartiment d'Escons (Llei d'Hont)</h3>
     
-			<!-- 🚀 NOU SELECTOR: Tria el nivell territorial on es reparteixen els diputats -->
+			<!--  NOU SELECTOR: Tria el nivell territorial on es reparteixen els diputats -->
 			<div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; background: #f8fafc; padding: 6px 12px; border-radius: 6px; border: 1px solid #e2e8f0;">
 				<label style="font-size: 12px; font-weight: 600; color: #1e293b;">Circumscripció Electoral:</label>
 				<select id="selector-circumscripcio-electoral" style="font-size: 12px; padding: 4px 8px;">
@@ -1134,7 +1136,7 @@
 		
 		
 		
-		<!-- 🗳️ CONFIGURACIÓ DE REGLES ELECTORALS AMB PARLAMENTS HISTÒRICS PROPRIS -->
+		<!--  CONFIGURACIÓ DE REGLES ELECTORALS AMB PARLAMENTS HISTÒRICS PROPRIS -->
 		<div class="card" style="border-color: #6366f1; background-color: #f8fafc;">
 			<h3 style="color: #6366f1; margin-bottom: 8px;">Model de Corts i Cambres Territorials</h3>
 			<div style="display: flex; flex-direction: column; gap: 10px;">
@@ -1168,7 +1170,7 @@
 		</div>
 
 		
-		<!-- 💾 EXPORTAR / IMPORTAR MAPA FORAL -->
+		<!--  EXPORTAR / IMPORTAR MAPA FORAL -->
 		<div class="card" style="border-color: #10b981;">
 			<h3 style="color: #10b981;">Desar i Compartir Mapa</h3>
 			<div style="font-size: 12px; color: #475569; margin-bottom: 12px;">
