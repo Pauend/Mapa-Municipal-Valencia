@@ -696,41 +696,89 @@ function actualitzarInterficiePartits() {
         const partit = diccionariPartits[idPartit];
         const estaActiu = colorPartitSeleccionat === idPartit;
 
+        // Creem l'estructura de la targeta del partit
         const wrapper = document.createElement('div');
         wrapper.style.display = 'flex';
         wrapper.style.alignItems = 'center';
         wrapper.style.border = estaActiu ? '2px solid #0f172a' : '1px solid #cbd5e1';
         wrapper.style.borderRadius = '6px';
         wrapper.style.overflow = 'hidden';
+        wrapper.style.gap = '4px';
+        wrapper.style.padding = '4px 8px';
+        wrapper.style.background = estaActiu ? '#f8fafc' : '#ffffff';
 
+        // 1. BOTÓ DE SELECCIÓ (Per a activar el pinzell i pintar el mapa)
         const btnSeleccio = document.createElement('button');
-        btnSeleccio.innerText = partit.nom;
-        btnSeleccio.style.padding = '6px 12px';
-        btnSeleccio.style.background = partit.color;
-        btnSeleccio.style.color = obtenirColorTextSegonsFons(partit.color);
-        btnSeleccio.style.border = 'none';
+        btnSeleccio.innerText = "✓";
+        btnSeleccio.style.padding = '4px 8px';
+        btnSeleccio.style.background = estaActiu ? '#0f172a' : '#f1f5f9';
+        btnSeleccio.style.color = estaActiu ? '#ffffff' : '#475569';
+        btnSeleccio.style.border = '1px solid #cbd5e1';
         btnSeleccio.style.cursor = 'pointer';
-        btnSeleccio.style.fontWeight = '600';
-        btnSeleccio.style.fontSize = '13px';
-        btnSeleccio.onclick = () => canviarPartitActiu(idPartit);
+        btnSeleccio.style.borderRadius = '4px';
+        btnSeleccio.style.fontWeight = 'bold';
+        btnSeleccio.onclick = () => {
+            canviarPartitActiu(idPartit);
+            actualitzarInterficiePartits();
+        };
 
+        // 2. INPUT DE TEXT (Per a editar el NOM del partit en viu)
+        const inputNomPartit = document.createElement('input');
+        inputNomPartit.type = 'text';
+        inputNomPartit.value = partit.nom;
+        inputNomPartit.style.width = '100px';
+        inputNomPartit.style.padding = '2px 6px';
+        inputNomPartit.style.border = '1px solid #cbd5e1';
+        inputNomPartit.style.borderRadius = '4px';
+        inputNomPartit.style.fontWeight = '600';
+        inputNomPartit.style.fontSize = '12px';
+        
+        // S'actualitza a la base de dades en teclejar i refresca l'escrutini de la dreta
+        inputNomPartit.oninput = (e) => {
+            diccionariPartits[idPartit].nom = e.target.value.toUpperCase();
+            if (typeof calcularEscrutiniGlobal === 'function') calcularEscrutiniGlobal();
+        };
+
+        // 3. SELECTOR DE COLOR (Per a canviar el COLOR del partit i re-pintar l'atles vectoritzat)
+        const selectorColor = document.createElement('input');
+        selectorColor.type = 'color';
+        selectorColor.value = partit.color;
+        selectorColor.style.width = '30px';
+        selectorColor.style.height = '24px';
+        selectorColor.style.border = 'none';
+        selectorColor.style.cursor = 'pointer';
+        selectorColor.style.padding = '0';
+        selectorColor.style.background = 'transparent';
+        
+        // Es llança mentre l'usuari arrastra el ratolí per la roda de colors
+        selectorColor.oninput = (e) => {
+            diccionariPartits[idPartit].color = e.target.value;
+            // Forcem el mapa i la graella a actualitzar el color geomètric reflectit
+            if (typeof renderSelectionColors === 'function') renderSelectionColors();
+            if (typeof calcularEscrutiniGlobal === 'function') calcularEscrutiniGlobal();
+        };
+
+        // 4. BOTÓ ELIMINAR
         const btnEliminar = document.createElement('button');
         btnEliminar.innerText = '×';
-        btnEliminar.style.padding = '6px 8px';
-        btnEliminar.style.background = '#f1f5f9';
+        btnEliminar.style.padding = '4px 8px';
+        btnEliminar.style.background = 'transparent';
         btnEliminar.style.color = '#ef4444';
         btnEliminar.style.border = 'none';
-        btnEliminar.style.borderLeft = '1px solid #cbd5e1';
         btnEliminar.style.cursor = 'pointer';
         btnEliminar.style.fontWeight = 'bold';
-        btnEliminar.style.fontSize = '14px';
+        btnEliminar.style.fontSize = '16px';
         btnEliminar.onclick = () => eliminarPartitExistent(idPartit);
 
+        // Muntem tots els elements interactius a la fila
         wrapper.appendChild(btnSeleccio);
+        wrapper.appendChild(inputNomPartit);
+        wrapper.appendChild(selectorColor);
         wrapper.appendChild(btnEliminar);
         contenidor.appendChild(wrapper);
     });
 }
+
 
 function eliminarPartitExistent(idPartit) {
     if (colorPartitSeleccionat === idPartit) {
@@ -1287,13 +1335,13 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
 	// ==========================================================================
-	// MOTOR D'IMPORTACIÓ DINÀMIC MULTI-PARTIT ULTRA-PROTEGIT (CSV)
+	// MOTOR D'IMPORTACIÓ REPARAT I COMPROVAT SENSE ERROS DE SINTAXI (CSV)
 	// ==========================================================================
 	const inputCsvMassiu = document.getElementById('csv-file-input');
 
 	if (inputCsvMassiu) {
 		inputCsvMassiu.addEventListener('change', function(e) {
-			const arxiuSeleccionat = e.target.files[0]; // Asegurem agafar el primer arxiu
+			const arxiuSeleccionat = e.target.files[0]; // Ens assegurem de capturar correctament el fitxer
 			if (!arxiuSeleccionat) return;
 
 			const lectorFitxers = new FileReader();
@@ -1302,33 +1350,32 @@ window.addEventListener('DOMContentLoaded', () => {
 				try {
 					let contingutText = esdeveniment.target.result;
 					
-					// SEGURETAT 1: Eliminem el caràcter invisible BOM de UTF-8 que clava l'Excel
+					// Eliminem el caràcter invisible BOM de UTF-8 si l'Excel l'ha injectat
 					if (contingutText.startsWith('\uFEFF')) {
 						contingutText = contingutText.substring(1);
 					}
 
-					// SEGURETAT 2: Trossegem de manera universal per a qualsevol sistema operatiu (Win/Mac/Linux)
+					// Trossegem de manera universal per files (Win/Mac/Linux)
 					const filesCSV = contingutText.split(/\r?\n|\r/);
 					
 					if (filesCSV.length < 2) {
-						alert("⚠️ Error: El fitxer està buit o no s'ha pogut leer cap línia.");
+						alert("⚠️ Error: El fitxer està buit o no es pot llegir.");
 						return;
 					}
 
-					// 1. LLEGIM LA CAPÇALERA (Fila 0)
-					const primeralinia = filesCSV[0].trim();
-					const capçalera = primeralinia.split(',');
+					// 1. PROCESSAR CAPÇALERA DE PARTITS (Comencen estrictament a la columna 5, índex 4)
+					const primeralinia = filesCSV[0] ? filesCSV[0].trim() : "";
+					if (!primeralinia) {
+						alert("⚠️ Error: La primera línia de la capçalera és buida.");
+						return;
+					}
 					
-					if (capçalera.length < 4) {
-						alert("⚠️ Error: El format del CSV no és correcte. Ha de tenir com a mínim les columnes: id, poblacio, ressenya i un partit.");
-						return;
-					}
-
+					const capçalera = primeralinia.split(',');
 					const índexPartits = {};
 
-					// Recorrem les columnes de partits (a partir de la posició 3)
-					for (let c = 3; c < capçalera.length; c++) {
-						const nomPartitCSV = capçalera[c].trim().replace(/^["']|["']$/g, ''); // Neteja de cometes
+					// Els partits van de l'índex 4 en endavant (ID, Nom, Població, Ressenya queden darrere)
+					for (let c = 4; c < capçalera.length; c++) {
+						let nomPartitCSV = capçalera[c].trim().replace(/^["']|["']$/g, '');
 						if (!nomPartitCSV) continue;
 
 						let idPartitTrobat = null;
@@ -1338,11 +1385,10 @@ window.addEventListener('DOMContentLoaded', () => {
 							}
 						});
 
-						// Si el partit és nou, el registrem automàticament
 						if (!idPartitTrobat) {
-							idPartitTrobat = `partit-dinamic-${nomPartitCSV.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+							const idNeta = nomPartitCSV.toLowerCase().replace(/[^a-z0-9]/g, '');
+							idPartitTrobat = `partit-dinamic-${idNeta}`;
 							
-							// Generem un color aleatori vistós i lluminós
 							const colorAleatori = `#${Math.floor(Math.random()*16777215).toString(16).padStart(6, '0')}`;
 							
 							diccionariPartits[idPartitTrobat] = { 
@@ -1350,77 +1396,94 @@ window.addEventListener('DOMContentLoaded', () => {
 								color: colorAleatori 
 							};
 						}
-
 						índexPartits[c] = idPartitTrobat;
 					}
 
-					// Actualitzem la paleta de botons de la dreta
 					if (typeof actualitzarInterficiePartits === 'function') actualitzarInterficiePartits();
 
 					let vilesActualitzades = 0;
+					let vilesSaltadesAmbError = 0;
 
-					// 2. LLEGIM LES DADES DE CADA MUNICIPI
+					// 2. LLEGIR LES DADES DE CADA FILA AMB ISOLAMENT DE SEGURETAT
 					for (let i = 1; i < filesCSV.length; i++) {
 						const filaNeta = filesCSV[i].trim();
 						if (!filaNeta) continue;
 
-						const columnes = filaNeta.split(',');
-						const idM = parseInt(columnes[0], 10) - 1; // Columna 0 = ID (ajustat a índex 0)
-						
-						if (isNaN(idM) || idM < 0 || idM >= 538) continue;
-
-						const dadaPoblacio = parseInt(columnes[1], 10) || 0; // Columna 1 = Població
-						const dadaRessenya = columnes[2] ? columnes[2].replace(/"/g, '') : ""; // Columna 2 = Ressenya
-
-						const estructuraVotsLocals = {};
-						
-						// Inicialitzem tots els partits activats a 0 per a aquest municipi
-						Object.keys(diccionariPartits).forEach(idP => estructuraVotsLocals[idP] = 0);
-
-						// Injectem els vots llegits des de les seues columnes dinàmiques
-						Object.keys(índexPartits).forEach(colIdx => {
-							const idPartit = índexPartits[colIdx];
-							const votsPartit = parseInt(columnes[colIdx], 10) || 0;
-							estructuraVotsLocals[idPartit] = votsPartit;
-						});
-
-						// Guardem la fitxa en memòria
-						baseDadesDetallsMunicipis[idM] = {
-							vots: estructuraVotsLocals,
-							text: dadaRessenya,
-							poblacio: dadaPoblacio > 0 ? dadaPoblacio : ""
-						};
-
-						// 3. RECOMPTE LOCAL PER AL COLOR DEL MAPA
-						let maximVotsCercats = 0;
-						let partitGuanyadorLocal = null;
-
-						Object.keys(estructuraVotsLocals).forEach(idPartit => {
-							if (estructuraVotsLocals[idPartit] > maximVotsCercats) {
-								maximVotsCercats = estructuraVotsLocals[idPartit];
-								partitGuanyadorLocal = idPartit;
+						try {
+							const columnes = filaNeta.split(',');
+							const idM = parseInt(columnes[0], 10) - 1; // Columna 0 = ID real
+							
+							if (isNaN(idM) || idM < 0) {
+								vilesSaltadesAmbError++;
+								continue;
 							}
-						});
 
-						if (maximVotsCercats > 0 && partitGuanyadorLocal) {
-							baseDadesColorsElectorals[idM] = partitGuanyadorLocal;
-						} else {
-							delete baseDadesColorsElectorals[idM];
+							const dadaPoblacio = parseInt(columnes[2], 10) || 0; // Columna 2 = Població real
+							
+							// Llegim la columna 3 (índex 3) de manera neta com a text per a la ressenya
+							let dadaRessenyaRaw = columnes[3] ? columnes[3].trim().replace(/^["']|["']$/g, '') : "Sense informació històrica";
+							// Escapem els caràcters perillosos per a forçar text pla real
+							let dadaRessenya = dadaRessenyaRaw
+							.replace(/&/g, "&amp;")
+							.replace(/</g, "&lt;")
+							.replace(/>/g, "&gt;")
+							.replace(/"/g, "&quot;")
+							.replace(/'/g, "&#039;");
+
+
+							const estructuraVotsLocals = {};
+							Object.keys(diccionariPartits).forEach(idP => estructuraVotsLocals[idP] = 0);
+
+							// Mapegem exclusivament els vots de les columnes de partit reals (4 en endavant)
+							Object.keys(índexPartits).forEach(colIdx => {
+								const idPartit = índexPartits[colIdx];
+								const valorVotRaw = columnes[colIdx];
+								const votsPartit = (valorVotRaw && valorVotRaw.trim() !== "") ? (parseInt(valorVotRaw, 10) || 0) : 0;
+								estructuraVotsLocals[idPartit] = votsPartit;
+							});
+
+							// Inserim la graella en el magatzem de dades
+							baseDadesDetallsMunicipis[idM] = {
+								vots: estructuraVotsLocals,
+								text: dadaRessenya,
+								poblacio: dadaPoblacio > 0 ? dadaPoblacio : ""
+							};
+
+							// Recompte electoral de vots guanyadors per a pintar els vectors
+							let maximVotsCercats = 0;
+							let partitGuanyadorLocal = null;
+
+							Object.keys(estructuraVotsLocals).forEach(idPartit => {
+								if (estructuraVotsLocals[idPartit] > maximVotsCercats) {
+									maximVotsCercats = estructuraVotsLocals[idPartit];
+									partitGuanyadorLocal = idPartit;
+								}
+							});
+
+							if (maximVotsCercats > 0 && partitGuanyadorLocal) {
+								baseDadesColorsElectorals[idM] = partitGuanyadorLocal;
+							} else {
+								delete baseDadesColorsElectorals[idM];
+							}
+
+							vilesActualitzades++;
+
+						} catch (errorFila) {
+							console.warn(`Error a la línia ${i}:`, errorFila);
+							vilesSaltadesAmbError++;
 						}
-
-						vilesActualitzades++;
 					}
 
-					// 4. REFRESC GENERAL DELS COMANTS VISUALS
+					// 3. RECÀLCUL I REFRESC DE LA PANTALLA
 					if (typeof renderSelectionColors === 'function') renderSelectionColors();
 					if (typeof calcularEscrutiniGlobal === 'function') calcularEscrutiniGlobal();
 					if (typeof up === 'function') up(null);
 
-					alert(`🚀 S'han carregat correctament ${vilesActualitzades} municipis!`);
+					alert(`🚀 Procés completat! S'han carregat correctament ${vilesActualitzades} municipis. S'han hagut de saltar de manera segura ${vilesSaltadesAmbError} línies amb errors visuals sense congelar l'aplicació.`);
 
-				} catch (error) {
-					console.error(error);
-					alert("⚠️ S'ha produït un error en processar el contingut del CSV. Revisa el format de les files.");
+				} catch (errorGlobal) {
+					console.error(errorGlobal);
+					alert("⚠️ S'ha produït un error crític en processar les columnes del CSV.");
 				}
 				
 				inputCsvMassiu.value = '';
@@ -1430,74 +1493,84 @@ window.addEventListener('DOMContentLoaded', () => {
 		});
 	}
 
-	// ==========================================================================
-	// MOTOR GENERADOR DE PLANTILLA CSV AMB NOMS REALS DE MUNICIPIOS
-	// ==========================================================================
-	const btnGenerarPlantilla = document.getElementById('btn-exportar-plantilla');
 
-	if (btnGenerarPlantilla) {
-		btnGenerarPlantilla.onclick = function() {
-			// 1. Busquem tots els municipis directament en els vectors del mapa SVG
-			const caminsMunicipis = document.querySelectorAll('#election-svg .frag');
-			
-			// 2. Creem la capçalera afegint la columna "nom"
-			let contingutCSV = "id,nom,poblacio,ressenya";
-			
-			// Injectem de manera automàtica els partits registrats al sistema
-			Object.keys(diccionariPartits).forEach(idP => {
-				contingutCSV += `,${diccionariPartits[idP].nom}`;
-			});
-			contingutCSV += "\n";
 
-			// 3. Cas clau: Si el mapa encara no s'ha carregat del tot o falta l'SVG, fem un bucle numèric de reserva
-			if (caminsMunicipis.length === 0) {
-				for (let i = 1; i <= 538; i++) {
-					contingutCSV += `${i},Municipi ${i},0,Sense ressenya`;
-					Object.keys(diccionariPartits).forEach(() => { contingutCSV += ",0"; });
-					contingutCSV += "\n";
+
+		// ==========================================================================
+		// GENERADOR FIDEL DELS MUNICIPIS REALS DEL MAPA (BASAT EN ELEMENTS SVG)
+		// ==========================================================================
+		const btnGenerarPlantilla = document.getElementById('btn-exportar-plantilla');
+
+		if (btnGenerarPlantilla) {
+			btnGenerarPlantilla.onclick = function() {
+				// 1. Capturem tots els elements o peces vectorials reals del mapa
+				const caminsMunicipis = document.querySelectorAll('#election-svg .frag');
+			
+				if (caminsMunicipis.length === 0) {
+					alert("⚠️ Error: No s'ha trobat cap municipi vectorial al mapa en aquest instant per a poder extreure'ls.");
+					return;
 				}
-			} else {
-				// Mapegem cada municipi real seguint el seu ordre d'ID vectorial
-				const llistaOrdenada = new Array(538);
+
+				// 2. Muntem un mapa temporal per a recollir i ordenar tots els IDs existents reals
+				const diccionariMunicipisMap = {};
 
 				caminsMunicipis.forEach(path => {
-					const mIdx = parseInt(path.getAttribute('data-m'), 10);
-					const nomReal = path.getAttribute('data-nom') || `Vila ${mIdx + 1}`;
+					const mAttr = path.getAttribute('data-m');
+					if (mAttr !== null) {
+						const mIdx = parseInt(mAttr, 10);
+						const nomReal = path.getAttribute('data-nom') || `Municipi Foral ${mIdx + 1}`;
 					
-					if (!isNaN(mIdx) && mIdx >= 0 && mIdx < 538) {
-						llistaOrdenada[mIdx] = nomReal;
+						// Guardem la relació usant l'ID real del mapa com a clau única
+						if (!isNaN(mIdx)) {
+							diccionariMunicipisMap[mIdx] = nomReal.trim();
+						}
 					}
 				});
 
-				// Generem el text del CSV ordenat de l'ID 1 al 538 amb la seua identitat
-				for (let i = 0; i < 538; i++) {
-					const idFila = i + 1;
-					const nomPoble = llistaOrdenada[i] || `Vila ${idFila}`;
-					
-					// Escrivim la informació de control amb el seu nom real
-					contingutCSV += `${idFila},"${nomPoble}",0,Sense informació històrica`;
-					
-					// Deixem les caselles dels partits a 0 per a poder editar-los fàcilment
+				// Ordenem de menor a major tots els IDs trobats reals en el teu SVG
+				const llistaIdsOrdenats = Object.keys(diccionariMunicipisMap)
+					.map(Number)
+					.sort((a, b) => a - b);
+
+				// 3. Generem les columnes de la capçalera del document
+				let contingutCSV = "id,nom,poblacio,ressenya";
+			
+				// Injectem de manera dinàmica els partits que tinguen a la paleta dret
+				Object.keys(diccionariPartits).forEach(idP => {
+					contingutCSV += `,${diccionariPartits[idP].nom}`;
+				});
+				contingutCSV += "\n";
+
+				// 4. Construïm les files exactes segons els IDs descoberts reals
+				llistaIdsOrdenats.forEach(idIntern => {
+					const idFilaExcel = idIntern + 1; // Ajust visual per a l'usuari (1 en endavant)
+					const nomPoble = diccionariMunicipisMap[idIntern];
+				
+					// Escrivim la fila estructurada amb el nom autèntic trobat
+					contingutCSV += `${idFilaExcel},"${nomPoble}",0,Sense informació històrica`;
+				
+					// Caselles buides (0) per a cada partit polític
 					Object.keys(diccionariPartits).forEach(() => {
 						contingutCSV += ",0";
 					});
 					contingutCSV += "\n";
-				}
-			}
+				});
 
-			// 4. Llançament i descàrrega automàtica del fitxer texturitzat
-			const blobPlantilla = new Blob([contingutCSV], { type: 'text/csv;charset=utf-8;' });
-			const enllaçDescarrega = document.createElement('a');
+				// 5. Descàrrega automatitzada del fitxer final unificat
+				const blobPlantilla = new Blob([contingutCSV], { type: 'text/csv;charset=utf-8;' });
+				const enllaçDescarrega = document.createElement('a');
 			
-			enllaçDescarrega.download = `plantilla_identificada_regne.csv`;
-			enllaçDescarrega.href = window.URL.createObjectURL(blobPlantilla);
-			enllaçDescarrega.style.display = 'none';
+				enllaçDescarrega.download = `plantilla_real_mapa_detectat.csv`;
+				enllaçDescarrega.href = window.URL.createObjectURL(blobPlantilla);
+				enllaçDescarrega.style.display = 'none';
 			
-			document.body.appendChild(enllaçDescarrega);
-			enllaçDescarrega.click();
-			document.body.removeChild(enllaçDescarrega);
-		};
-	}
+				document.body.appendChild(enllaçDescarrega);
+				enllaçDescarrega.click();
+				document.body.removeChild(enllaçDescarrega);
+			};
+		}
+
+
 
 
 
